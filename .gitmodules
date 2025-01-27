@@ -1,0 +1,3 @@
+[submodule "scripts_submodule"]
+	path = scripts_submodule
+	url = https://github.com/YuminJo/The-Witch-and-the-Cosmic-Journey.git
