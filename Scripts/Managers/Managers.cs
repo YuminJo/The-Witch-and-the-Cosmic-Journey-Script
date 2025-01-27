@@ -38,7 +38,7 @@ public class Managers : MonoBehaviour
     }
 
     public IEnumerator WaitforData() {
-        s_instance._scene.Init();
+        s_instance._game.Init();
         
         Debug.Log("Loaded Finished");
         yield return new WaitForSeconds(1f);
