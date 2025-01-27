@@ -1,6 +1,10 @@
 using UnityEngine;
 
-public class BattleCharacterView : UI_Popup
+public interface IBattleCharacterView {
+    void SetCharacterData(Character character);
+}
+
+public class BattleCharacterView : UI_Popup, IBattleCharacterView
 {
     enum GameObjects {
         EffectLayout
@@ -21,7 +25,12 @@ public class BattleCharacterView : UI_Popup
         BindObject(typeof(GameObjects));
         BindImage(typeof(Images));
         
+        //TODO: Set character image and hp bar
         
         return true;
+    }
+    
+    public void SetCharacterData(Character character) {
+        _characterData = character;
     }
 }

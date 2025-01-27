@@ -18,7 +18,7 @@ public class ResourceManager
     public int HandlesCount = 0;
     
     #region 리소스
-    public void LoadAsync<T>(string key, Action<T> callback = null) where T : UnityEngine.Object
+    public void LoadAsync<T>(string key = null, Action<T> callback = null) where T : UnityEngine.Object
     {
         // 캐시 확인.
         if (_resources.TryGetValue(key, out Object resource))
