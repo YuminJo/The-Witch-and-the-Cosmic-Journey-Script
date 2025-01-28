@@ -9,8 +9,7 @@ using Sirenix.OdinInspector;
 public class CardManager : MonoBehaviour {
     public static CardManager Inst { get; private set; }
     void Awake() => Inst = this;
-
-    [Required] private CardSO _cardSo;
+    
     [Required] private GameObject _cardPrefab;
     
     [Required] [SerializeField] [FoldoutGroup("Card Env")] [ReadOnly]
@@ -28,7 +27,6 @@ public class CardManager : MonoBehaviour {
     private List<Card> cardBuffer;
 
     void Start() {
-        Managers.Resource.LoadAsync<CardSO>("CardSO", (result) => _cardSo = result);
         Managers.Resource.LoadAsync<GameObject>("CardPrefab", (result) => _cardPrefab = result);
 
 #if UNITY_EDITOR
@@ -49,10 +47,11 @@ public class CardManager : MonoBehaviour {
     }
 
     public void SetupItemBuffer() {
+        //TODO: 플레이어가 가지고 있는 카드로 나중에 변경
         cardBuffer = new List<Card>(100);
-        for (int i = 0; i < _cardSo.cards.Length; i++) {
-            Card item = _cardSo.cards[i];
-            for (int j = 0; j < item.percent; j++)
+        for (int i = 0; i < Managers.Data.Cards.Count; i++) {
+            Card item = Managers.Data.Cards[i];
+            //for (int j = 0; j < item.percent; j++)
                 cardBuffer.Add(item);
         }
 

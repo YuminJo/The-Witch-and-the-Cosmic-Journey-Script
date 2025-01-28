@@ -12,12 +12,14 @@ public class Managers : MonoBehaviour
     private UIManager _ui = new();
     private SceneManagerEx _scene = new();
     private EventManager _event = new();
+    private DataManager _data = new();
     
     public static GameManager Game { get { Init(); return Instance?._game; } }
     public static ResourceManager Resource { get { Init(); return Instance?._resource; } }
     public static UIManager UI { get { Init(); return Instance?._ui; } }
     public static SceneManagerEx Scene { get { Init(); return Instance?._scene; } }
     public static EventManager Event { get { Init(); return Instance?._event; } }
+    public static DataManager Data { get { Init(); return Instance?._data; } }
 
     private void Start()
     {
@@ -39,6 +41,7 @@ public class Managers : MonoBehaviour
 
     public IEnumerator WaitforData() {
         s_instance._game.Init();
+        StartCoroutine(s_instance._data.LoadData());
         
         Debug.Log("Loaded Finished");
         yield return new WaitForSeconds(1f);

@@ -9,7 +9,6 @@ public class CardView : MonoBehaviour
     [SerializeField] SpriteRenderer card;
     [SerializeField] SpriteRenderer character;
     [SerializeField] TMP_Text nameTMP;
-    [SerializeField] TMP_Text attackTMP;
     [SerializeField] TMP_Text healthTMP;
     [SerializeField] Sprite cardFront;
     [SerializeField] Sprite cardBack;
@@ -28,14 +27,12 @@ public class CardView : MonoBehaviour
         if (this.isFront)
         {
             character.sprite = this.item.sprite;
-            nameTMP.text = this.item.name;
-            attackTMP.text = this.item.attack.ToString();
+            nameTMP.text = this.item.templateId;
         }
         else
         {
             card.sprite = cardBack;
             nameTMP.text = "";
-            attackTMP.text = "";
             healthTMP.text = "";
         }
     }

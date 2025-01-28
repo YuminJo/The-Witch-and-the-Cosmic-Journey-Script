@@ -8,7 +8,8 @@ public interface IBattleView {
 public class BattleView : UI_Popup, IBattleView {
     enum Buttons {
         CardSelectButton,
-        ItemSelectButton
+        ItemSelectButton,
+        EndTurnButton
     }
     
     enum GameObjects {
@@ -26,6 +27,7 @@ public class BattleView : UI_Popup, IBattleView {
         
         presenter = new BattlePresenter(this);
         
+        GetButton((int)Buttons.EndTurnButton).gameObject.BindEvent(OnClickEndTurn);
         GetButton((int)Buttons.CardSelectButton).gameObject.BindEvent(() => {
             TurnManager.OnClickSkillButton?.Invoke(); });
         return true;
@@ -38,5 +40,9 @@ public class BattleView : UI_Popup, IBattleView {
     public void CreateCharacterView(Character character) {
         Managers.Resource.Instantiate(nameof(BattleCharacterView), GetObject((int)GameObjects.CharacterGroup).transform, (go) => {
             go.GetComponent<BattleCharacterView>().SetCharacterData(character); });
+    }
+
+    public void OnClickEndTurn() {
+        TurnManager.OnEndTurn?.Invoke();
     }
 }

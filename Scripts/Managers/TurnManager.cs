@@ -5,7 +5,6 @@ using System;
 
 interface ITurnManager {
     void StartGame();
-    void EndTurn();
 }
 
 public class TurnManager : MonoBehaviour, ITurnManager
@@ -41,10 +40,12 @@ public class TurnManager : MonoBehaviour, ITurnManager
 
     public static Action OnClickSkillButton;
     public static Action OnAddCard;
+    public static Action OnEndTurn;
     public static event Action<bool> OnTurnStarted;
 
     private void GameSetup() {
         OnClickSkillButton += ClickSkillButton;
+        OnEndTurn += EndTurn;
         CardManager.Inst.SetupItemBuffer();
         
         // fastMode에 따라 delay 설정
@@ -85,8 +86,10 @@ public class TurnManager : MonoBehaviour, ITurnManager
     }
     
 
-    public void EndTurn() {
+    private void EndTurn() {
+        //TODO: 턴 종료전 모든 행동 처리 확인 로직 추가
+        if (!_myTurn) return;
         _myTurn = !_myTurn;
-        Debug.Log(_myTurn ? "나의 턴" : "적의 턴");
+        Debug.Log(_myTurn ? "TurnManager: 나의 턴" : "TurnManager: 적의 턴");
     }
 }
