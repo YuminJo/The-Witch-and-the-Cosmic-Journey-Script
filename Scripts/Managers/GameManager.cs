@@ -27,9 +27,6 @@ public class GameManager : IGameManager {
     public List<Character> GetCharactersData() { return _currentSelectedCharacters; }
 
     private void InputCheatKey() {
-        if (Input.GetKeyDown(KeyCode.Keypad3))
-            TurnManager.Inst.EndTurn();
-
         if (Input.GetKeyDown(KeyCode.Space)) {
             TurnManager.OnAddCard?.Invoke();
         }

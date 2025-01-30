@@ -22,7 +22,7 @@ public class CardDataLoader : ILoader<int, Card>
                 continue;
             }
                 
-            dic.Add(data.id, data);
+            dic.Add(dic.Count, data);
         }
         
         Debug.Log("CardDataLoader: " + dic.Count);

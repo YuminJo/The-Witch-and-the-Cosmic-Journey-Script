@@ -1,17 +1,15 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Random = UnityEngine.Random;
 using DG.Tweening;
 using Sirenix.OdinInspector;
 
 public class CardManager : MonoBehaviour {
     public static CardManager Inst { get; private set; }
     void Awake() => Inst = this;
-    
+
     [Required] private GameObject _cardPrefab;
-    
+
     [Required] [SerializeField] [FoldoutGroup("Card Env")] [ReadOnly]
     List<CardView> myCards;
 
@@ -24,7 +22,8 @@ public class CardManager : MonoBehaviour {
     [Required] [SerializeField] [FoldoutGroup("Card Env")]
     Transform cardSpawnPoint;
 
-    private List<Card> cardBuffer;
+    CardView selectCard;
+    List<Card> cardBuffer;
 
     void Start() {
         Managers.Resource.LoadAsync<GameObject>("CardPrefab", (result) => _cardPrefab = result);
@@ -37,22 +36,12 @@ public class CardManager : MonoBehaviour {
         TurnManager.OnAddCard += AddCard;
     }
 
-    public Card PopCard() {
-        if (cardBuffer.Count == 0)
-            SetupItemBuffer();
-
-        Card item = cardBuffer[0];
-        cardBuffer.RemoveAt(0);
-        return item;
-    }
-
     public void SetupItemBuffer() {
-        //TODO: 플레이어가 가지고 있는 카드로 나중에 변경
         cardBuffer = new List<Card>(100);
         for (int i = 0; i < Managers.Data.Cards.Count; i++) {
+            Debug.Log(Managers.Data.Cards.Count);
             Card item = Managers.Data.Cards[i];
-            //for (int j = 0; j < item.percent; j++)
-                cardBuffer.Add(item);
+            cardBuffer.Add(item);
         }
 
         for (int i = 0; i < cardBuffer.Count; i++) {
@@ -70,6 +59,13 @@ public class CardManager : MonoBehaviour {
         CardAlignment();
     }
 
+    public void UseCard(CardView card) {
+        myCards.Remove(card);
+        selectCard = null;
+        SetOriginOrder();
+        CardAlignment();
+    }
+
     void SetOriginOrder() {
         for (int i = 0; i < myCards.Count; i++) {
             myCards[i]?.GetComponent<Order>().SetOriginOrder(i);
@@ -77,15 +73,14 @@ public class CardManager : MonoBehaviour {
     }
 
     void CardAlignment() {
-        List<PRS> originCardPRSs = new List<PRS>();
-        originCardPRSs = RoundAlignment(myCardLeft, myCardRight, myCards.Count, 0.5f, Vector3.one * 1.5f);
+        List<PRS> originCardPRSs = RoundAlignment(myCardLeft, myCardRight, myCards.Count, 0.5f, Vector3.one * CardView.cardSize);
 
         var targetCards = myCards;
         for (int i = 0; i < targetCards.Count; i++) {
             var targetCard = targetCards[i];
 
             targetCard.originPRS = originCardPRSs[i];
-            targetCard.MoveTransform(targetCard.originPRS, true, 0.7f);
+            MoveTransform(targetCard, targetCard.originPRS, true, 0.7f);
         }
     }
 
@@ -126,13 +121,8 @@ public class CardManager : MonoBehaviour {
         return results;
     }
 
-    #region MyCard
-
     public void CardMouseOver(CardView card) {
-        /*if (eCardState == ECardState.Nothing)
-            return;
-
-        selectCard = card;*/
+        selectCard = card;
         EnlargeCard(true, card);
     }
 
@@ -140,54 +130,14 @@ public class CardManager : MonoBehaviour {
         EnlargeCard(false, card);
     }
 
-    /*public void CardMouseDown()
-    {
-        if (eCardState != ECardState.CanMouseDrag)
-            return;
-
-        isMyCardDrag = true;
-    }
-
-    public void CardMouseUp()
-    {
-        isMyCardDrag = false;
-
-        if (eCardState != ECardState.CanMouseDrag)
-            return;
-
-        if (onMyCardArea)
-            EntityManager.Inst.RemoveMyEmptyEntity();
-        else
-            TryPutCard(true);
-    }
-
-    void CardDrag()
-    {
-        if (eCardState != ECardState.CanMouseDrag)
-            return;
-
-        if (!onMyCardArea)
-        {
-            selectCard.MoveTransform(new PRS(Utils.MousePos, Utils.QI, selectCard.originPRS.scale), false);
-            EntityManager.Inst.InsertMyEmptyEntity(Utils.MousePos.x);
-        }
-    }
-
-    void DetectCardArea()
-    {
-        RaycastHit2D[] hits = Physics2D.RaycastAll(Utils.MousePos, Vector3.forward);
-        int layer = LayerMask.NameToLayer("MyCardArea");
-        onMyCardArea = Array.Exists(hits, x => x.collider.gameObject.layer == layer);
-    }*/
-
     void EnlargeCard(bool isEnlarge, CardView card) {
         DOTween.Kill(card.transform);
         if (isEnlarge) {
             Vector3 enlargePos = new Vector3(card.originPRS.pos.x, -4.8f, -10f);
-            card.MoveTransform(new PRS(enlargePos, Utils.QI, Vector3.one * 2.5f), true, 0.5f);
+            MoveTransform(card, new PRS(enlargePos, Utils.QI, Vector3.one * 2.5f), true, 0.5f);
             AdjustOtherCards(card, true);
         } else {
-            card.MoveTransform(card.originPRS, true, 0.3f);
+            MoveTransform(card, card.originPRS, true, 0.3f);
             AdjustOtherCards(card, false);
         }
 
@@ -195,7 +145,7 @@ public class CardManager : MonoBehaviour {
     }
 
     void AdjustOtherCards(CardView centerCard, bool isEnlarge) {
-        float offset = 3.0f; // Adjust this value to control how much other cards move
+        float offset = 3.0f;
         for (int i = 0; i < myCards.Count; i++) {
             if (myCards[i] == centerCard) continue;
 
@@ -208,21 +158,30 @@ public class CardManager : MonoBehaviour {
                 }
             }
 
-            myCards[i].MoveTransform(new PRS(newPos, myCards[i].originPRS.rot, myCards[i].originPRS.scale), true, 0.5f);
+            MoveTransform(myCards[i], new PRS(newPos, myCards[i].originPRS.rot, myCards[i].originPRS.scale), true, 0.5f);
         }
     }
 
-    /*void SetECardState()
-    {
-        if (TurnManager.Inst.isLoading)
-            eCardState = ECardState.Nothing;
+    public void MoveTransform(CardView card, PRS prs, bool useDotween, float dotweenTime = 0) {
+        DOTween.Kill(card.transform);
+        if (useDotween) {
+            card.transform.DOMove(prs.pos, dotweenTime).SetEase(Ease.OutQuart);
+            card.transform.DORotateQuaternion(prs.rot, dotweenTime).SetEase(Ease.OutQuart);
+            card.transform.DOScale(prs.scale, dotweenTime).SetEase(Ease.OutQuart);
+        } else {
+            card.transform.position = prs.pos;
+            card.transform.rotation = prs.rot;
+            card.transform.localScale = prs.scale;
+        }
+    }
 
-        else if (!TurnManager.Inst.myTurn || myPutCount == 1 || EntityManager.Inst.IsFullMyEntities)
-            eCardState = ECardState.CanMouseOver;
+    public IEnumerator MoveCardToCenter(CardView card) {
+        MoveTransform(card, new PRS(Vector3.zero, Quaternion.identity, Vector3.one * CardView.cardSize), true, 0.5f);
+        yield return new WaitForSeconds(1f);
+    }
 
-        else if (TurnManager.Inst.myTurn && myPutCount == 0)
-            eCardState = ECardState.CanMouseDrag;
-    }*/
-
-    #endregion
+    public void ScaleCard(CardView card, Vector2 scale, float duration) {
+        DOTween.Kill(card.transform);
+        card.transform.DOScale(scale, duration).SetEase(Ease.InCirc);
+    }
 }

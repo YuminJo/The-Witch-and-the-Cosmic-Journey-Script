@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using DG.Tweening;
@@ -12,68 +11,53 @@ public class CardView : MonoBehaviour
     [SerializeField] TMP_Text healthTMP;
     [SerializeField] Sprite cardFront;
     [SerializeField] Sprite cardBack;
-    //[SerializeField] ECardState eCardState;
-    
+
     public Card item;
-    bool isFront;
     public PRS originPRS;
+    private bool isCardClicked = false;
 
+    public const float cardSize = 1.5f;
 
-    public void Setup(Card item, bool isFront)
-    {
+    public void Setup(Card item) {
         this.item = item;
-        this.isFront = isFront;
+        character.sprite = this.item.sprite;
+        nameTMP.text = this.item.templateId;
+    }
 
-        if (this.isFront)
-        {
-            character.sprite = this.item.sprite;
-            nameTMP.text = this.item.templateId;
-        }
-        else
-        {
-            card.sprite = cardBack;
-            nameTMP.text = "";
-            healthTMP.text = "";
+    public void Update() {
+        if (Input.GetKeyDown(KeyCode.Space)) {
+            isCardClicked = false;
         }
     }
-    
-    public void MoveTransform(PRS prs, bool useDotween, float dotweenTime = 0)
-    {
-        if (useDotween)
-        {
-            transform.DOMove(prs.pos, dotweenTime).SetEase(Ease.OutQuart);
-            transform.DORotateQuaternion(prs.rot, dotweenTime).SetEase(Ease.OutQuart);
-            transform.DOScale(prs.scale, dotweenTime).SetEase(Ease.OutQuart);
-        }
-        else
-        {
-            transform.position = prs.pos;
-            transform.rotation = prs.rot;
-            transform.localScale = prs.scale;
-        }
+
+    private IEnumerator OnClickCard() {
+        isCardClicked = true;
+        CardManager.Inst.UseCard(this);
+        yield return CardManager.Inst.MoveCardToCenter(this);
+        Destroy(gameObject);
     }
-    
-    void OnMouseOver()
-    {
+
+    void OnMouseOver() {
+        if (isCardClicked) return;
         Debug.Log("OnMouseOver");
-        isFront = true; //test
-        if (isFront) CardManager.Inst.CardMouseOver(this);
+        CardManager.Inst.CardMouseOver(this);
     }
 
-    void OnMouseExit()
-    {
+    void OnMouseExit() {
+        if (isCardClicked) return;
         Debug.Log("OnMouseExit");
-        isFront = true; //test
-        if (isFront) CardManager.Inst.CardMouseExit(this);
+        CardManager.Inst.CardMouseExit(this);
     }
 
-    /*void OnMouseDown()
-    {
-        if (isFront) CardManager.Inst.CardMouseDown();
+    void OnMouseDown() {
+        if (isCardClicked) return;
+        Debug.Log("OnMouseDown");
+        CardManager.Inst.ScaleCard(this, new Vector2(2.2f, 2.2f), 0.1f);
     }
 
-    void OnMouseUp()
-    {
-        if (isFront) CardManager.Inst.CardMouseUp();
-    }*/
+    void OnMouseUpAsButton() {
+        if (isCardClicked) return;
+        Debug.Log("OnMouseUp");
+        StartCoroutine(OnClickCard());
+    }
 }

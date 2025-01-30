@@ -12,8 +12,7 @@ public interface ILoader<Key, Item>
     Dictionary<Key, Item> MakeDic();
     bool Validate();
 }
-public class DataManager
-{
+public class DataManager {
     public Dictionary<int, Card> Cards { get; private set; }
     
     public IEnumerator LoadData() {

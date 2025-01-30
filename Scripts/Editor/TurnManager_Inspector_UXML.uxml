@@ -4,9 +4,10 @@
     <UnityEngine.UIElements.VisualElement name="myVisualElements" class="default-visualelements" style="flex-grow: 1; display: flex; -unity-font-definition: resource(&apos;Font/Editor/GalmuriMono9&apos;); -unity-font-style: bold; -unity-slice-top: 0; padding-top: 10px; padding-right: 20px; padding-left: 20px; color: rgb(255, 255, 255);">
         <UnityEngine.UIElements.EnumField label="TURN MODE" value="Center" type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" binding-path="eTurnMode" tooltip="시작 턴 모드를 정합니다" style="justify-content: space-around;" />
         <UnityEngine.UIElements.Toggle language-direction="Inherit" binding-path="fastMode" label="FAST DRAW MODE" name="FastDrawToggle" tooltip="카드 배분이 매우 빨라집니다" style="color: rgb(255, 255, 255); flex-direction: row; align-self: auto; align-content: flex-start; align-items: stretch; -unity-text-align: upper-left; white-space: normal; text-overflow: top; opacity: 1; justify-content: flex-start; display: flex;" />
-        <UnityEngine.UIElements.SliderInt label="START CARD COUNT" value="4" high-value="10" tooltip="시작 카드 개수를 정합니다" binding-path="currentAPCount" fill="true" show-input-field="true" inverted="false" />
+        <UnityEngine.UIElements.SliderInt label="START CARD COUNT" value="0" high-value="10" tooltip="시작 카드 개수를 정합니다" binding-path="startCardCount" fill="true" show-input-field="true" inverted="false" />
         <UnityEngine.UIElements.VisualElement name="Line" style="flex-grow: 0; flex-direction: column; height: 3px; justify-content: flex-start; flex-shrink: 1; background-color: rgb(255, 190, 0); align-self: flex-start; width: 100%; margin-top: 10px; margin-bottom: 10px;" />
         <UnityEngine.UIElements.Label text="DEV DEBUG" style="font-size: 16px; -unity-text-align: middle-center; white-space: nowrap; text-overflow: clip; margin-right: 40px; margin-left: 40px; margin-bottom: 5px;" />
+        <UnityEngine.UIElements.SliderInt label="CURRENT AP COUNT" value="0" high-value="10" tooltip="시작 카드 개수를 정합니다" binding-path="currentAPCount" fill="true" show-input-field="true" inverted="false" />
         <UnityEngine.UIElements.Button text="START GAME" enable-rich-text="false" parse-escape-sequences="false" name="StartButton" style="height: 40px;" />
     </UnityEngine.UIElements.VisualElement>
 </ui:UXML>
