@@ -3,7 +3,7 @@ public enum EnemyType {
 }
 
 [System.Serializable]
-public class Enemy : Entity {
+public class Enemy : GameEntity {
     public EnemyType Type { get; private set; }
 
     public Enemy(string templateId, int hp, int mp, int atk, int agi, int startAP, EnemyType type)

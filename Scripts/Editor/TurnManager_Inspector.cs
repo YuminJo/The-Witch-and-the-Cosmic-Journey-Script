@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-[CustomEditor(typeof(TurnManager))]
+[CustomEditor(typeof(TurnSystem))]
 public class TurnManager_Inspector : Editor
 {
     public VisualTreeAsset m_InspectorXML;
@@ -39,7 +39,7 @@ public class TurnManager_Inspector : Editor
     public override bool UseDefaultMargins() => false;
     
     private void OnMyButtonClicked() {
-        TurnManager myComponent = (TurnManager)target;
+        TurnSystem myComponent = (TurnSystem)target;
         myComponent.StartGame();
     }
 }

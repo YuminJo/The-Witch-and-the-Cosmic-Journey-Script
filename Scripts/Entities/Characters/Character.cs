@@ -6,7 +6,7 @@ public enum CharacterType {
 }
 
 [System.Serializable]
-public class Character : Entity {
+public class Character : GameEntity {
     public CharacterType Type { get; private set; }
     public int Exp { get; private set; }
     public Character(string templateId, int hp, int mp, int atk, int agi, int startAP, CharacterType type)

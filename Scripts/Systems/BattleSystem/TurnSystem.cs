@@ -5,14 +5,14 @@ using System;
 using System.Linq;
 using UnityEngine.Serialization;
 
-interface ITurnManager {
+interface ITurnSystem {
     void StartGame();
 }
 
-public class TurnManager : MonoBehaviour, ITurnManager
+public class TurnSystem : MonoBehaviour, ITurnSystem
 {
-    public static TurnManager Inst { get; private set; }
-    Queue<Entity> _entityQueue = new();
+    public static TurnSystem Inst { get; private set; } 
+    Queue<GameEntity> _entityQueue = new();
     void Awake() {
         if (Inst != null && Inst != this) {
             Destroy(gameObject); // 중복된 인스턴스가 생성되는 것 방지
@@ -99,7 +99,7 @@ public class TurnManager : MonoBehaviour, ITurnManager
         //_currentEnemys.ForEach(enemy => _entityQueue.Enqueue(enemy));
         
         // agi값을 기준으로 정렬
-        _entityQueue = new Queue<Entity>(_entityQueue.OrderBy(entity => entity.Agi));
+        _entityQueue = new Queue<GameEntity>(_entityQueue.OrderBy(entity => entity.Agi));
 
         //var entityComponent = _entityQueue.Peek().GetComponent<YourComponentType>();
     }

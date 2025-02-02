@@ -31,7 +31,7 @@ public class BattleView : UI_Popup, IBattleView {
         
         GetButton((int)Buttons.EndTurnButton).gameObject.BindEvent(OnClickEndTurn);
         GetButton((int)Buttons.CardSelectButton).gameObject.BindEvent(() => {
-            TurnManager.OnClickSkillButton?.Invoke(); });
+            TurnSystem.OnClickSkillButton?.Invoke(); });
 
         foreach (var character in Managers.Game.GetSelectedCharacters()) {
             CreateCharacterView(character); }
@@ -57,6 +57,6 @@ public class BattleView : UI_Popup, IBattleView {
     }
 
     public void OnClickEndTurn() {
-        TurnManager.OnEndTurn?.Invoke();
+        TurnSystem.OnEndTurn?.Invoke();
     }
 }

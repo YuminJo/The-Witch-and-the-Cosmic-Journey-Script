@@ -11,7 +11,7 @@ public class BuffManager {
 }
 
 [System.Serializable]
-public class Entity {
+public class GameEntity {
     public string TemplateId { get; private set; }
     public int Hp { get; private set; }
     public int MaxHp { get; private set; }
@@ -25,7 +25,7 @@ public class Entity {
     private BuffManager _buffManager;
     public IEnumerable<ItemBuff> Buffs => _buffManager.Buffs;
 
-    public Entity(string templateId, int hp, int mp, int atk, int agi, int startAP) {
+    public GameEntity(string templateId, int hp, int mp, int atk, int agi, int startAP) {
         TemplateId = templateId;
         Hp = hp;
         MaxHp = hp;

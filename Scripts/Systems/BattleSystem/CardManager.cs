@@ -33,7 +33,7 @@ public class CardManager : MonoBehaviour {
         if (myCardRight == null) Utils.GlobalException("myCardRight is null");
         if (cardSpawnPoint == null) Utils.GlobalException("cardSpawnPoint is null");
 #endif
-        TurnManager.OnAddCard += AddCard;
+        TurnSystem.OnAddCard += AddCard;
     }
 
     public void SetupItemBuffer() {

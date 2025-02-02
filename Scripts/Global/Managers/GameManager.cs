@@ -28,7 +28,7 @@ public class GameManager {
     
     private void InputCheatKey() {
         if (Input.GetKeyDown(KeyCode.Space)) {
-            TurnManager.OnAddCard?.Invoke();
+            TurnSystem.OnAddCard?.Invoke();
         }
     }
 }
