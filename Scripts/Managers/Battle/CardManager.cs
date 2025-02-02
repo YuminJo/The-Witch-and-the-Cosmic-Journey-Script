@@ -55,6 +55,8 @@ public class CardManager : MonoBehaviour {
     void AddCard() {
         var cardObject = Instantiate(_cardPrefab, cardSpawnPoint.position, Utils.QI);
         myCards.Add(cardObject.GetComponent<CardView>());
+        cardObject.GetComponent<CardView>().SetCardData(cardBuffer[myCards.Count - 1]);
+        
         SetOriginOrder();
         CardAlignment();
     }

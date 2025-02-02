@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public interface IBattleCharacterView {
@@ -12,7 +13,8 @@ public class BattleCharacterView : UI_Popup, IBattleCharacterView
 
     enum Images {
         CharacterImage,
-        HpBar
+        HpBar,
+        TurnChecker
     }
     
     private Character _characterData;
@@ -25,6 +27,8 @@ public class BattleCharacterView : UI_Popup, IBattleCharacterView
         BindObject(typeof(GameObjects));
         BindImage(typeof(Images));
         
+        GetImage((int)Images.TurnChecker).gameObject.SetActive(false);
+        
         //TODO: Set character image and hp bar
         
         return true;
@@ -32,5 +36,9 @@ public class BattleCharacterView : UI_Popup, IBattleCharacterView
     
     public void SetCharacterData(Character character) {
         _characterData = character;
+    }
+
+    private void ThisCharacterTurn() {
+        GetImage((int)Images.TurnChecker).gameObject.SetActive(true);
     }
 }

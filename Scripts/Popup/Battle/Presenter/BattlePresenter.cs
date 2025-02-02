@@ -7,11 +7,5 @@ public class BattlePresenter {
     public BattlePresenter(IBattleView view) {
         this.view = view;
         model = new BattleModel();
-        
-        CreateCharacterView();
-    }
-    
-    public void CreateCharacterView() {
-        model.CurrentCharacters.ForEach(character => view.CreateCharacterView(character));
     }
 }

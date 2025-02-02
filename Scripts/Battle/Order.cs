@@ -8,7 +8,8 @@ public class Order : MonoBehaviour
     [SerializeField] Renderer[] middleRenderers;
     [SerializeField] string sortingLayerName;
     int originOrder;
-
+    
+    //TODO 나중에 CardVIew에  병합
 
     public void SetOriginOrder(int originOrder)
     {
