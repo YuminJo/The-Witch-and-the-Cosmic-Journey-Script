@@ -13,9 +13,7 @@ public class Object_Base : MonoBehaviour
     {
         if (_init)
             return false;
-
-        Managers.Init();
-
+        
         _init = true;
         return true;
     }

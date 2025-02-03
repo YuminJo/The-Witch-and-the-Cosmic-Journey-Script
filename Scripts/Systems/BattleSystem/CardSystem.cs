@@ -4,10 +4,17 @@ using UnityEngine;
 using DG.Tweening;
 using Sirenix.OdinInspector;
 
-public class CardManager : MonoBehaviour {
-    public static CardManager Inst { get; private set; }
-    void Awake() => Inst = this;
+public interface ICardSystem {
+    void Init();
+    void SetupItemBuffer();
+    void CardMouseOver(CardView card);
+    void CardMouseExit(CardView card);
+    void UseCard(CardView card);
+    void ScaleCard(CardView card, Vector2 scale, float duration);
+    IEnumerator MoveCardToCenter(CardView card);
+}
 
+public class CardSystem : MonoBehaviour, ICardSystem {
     [Required] private GameObject _cardPrefab;
 
     [Required] [SerializeField] [FoldoutGroup("Card Env")] [ReadOnly]
@@ -26,7 +33,11 @@ public class CardManager : MonoBehaviour {
     List<Card> cardBuffer;
 
     void Start() {
-        Managers.Resource.LoadAsync<GameObject>("CardPrefab", (result) => _cardPrefab = result);
+        ServiceLocator.Register<ICardSystem>(this);
+    }
+    
+    public void Init() {
+        ServiceLocator.Get<ResourceManager>().LoadAsync<GameObject>("CardPrefab", (result) => _cardPrefab = result);
 
 #if UNITY_EDITOR
         if (myCardLeft == null) Utils.GlobalException("myCardLeft is null");
@@ -35,12 +46,14 @@ public class CardManager : MonoBehaviour {
 #endif
         TurnSystem.OnAddCard += AddCard;
     }
+    
+    public void UnRegisterService() => ServiceLocator.UnRegister<ICardSystem>();
 
     public void SetupItemBuffer() {
         cardBuffer = new List<Card>(100);
-        for (int i = 0; i < Managers.Data.Cards.Count; i++) {
-            Debug.Log(Managers.Data.Cards.Count);
-            Card item = Managers.Data.Cards[i];
+        for (int i = 0; i < GameInitializer.DataManager.Cards.Count; i++) {
+            Debug.Log(GameInitializer.DataManager.Cards.Count);
+            Card item = GameInitializer.DataManager.Cards[i];
             cardBuffer.Add(item);
         }
 

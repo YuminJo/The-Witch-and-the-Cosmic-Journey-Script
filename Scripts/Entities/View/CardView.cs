@@ -52,7 +52,7 @@ public class CardView : Object_Base
         Debug.Log("CardView.Setup: " + cardData.description);
         Debug.Log("CardView.Setup: " + cardData.sprite);
         
-        Managers.Resource.LoadAsync<Sprite>("samplecard", (sprite) => {
+        ServiceLocator.Get<ResourceManager>().LoadAsync<Sprite>("samplecard", (sprite) => {
             GetSprite((int)Sprites.Character).sprite = sprite;
         });
         GetText((int)Texts.Name).text = cardData.templateId;
@@ -67,27 +67,24 @@ public class CardView : Object_Base
 
     private IEnumerator OnClickCard() {
         isCardClicked = true;
-        CardManager.Inst.UseCard(this);
-        yield return CardManager.Inst.MoveCardToCenter(this);
+        ServiceLocator.Get<ICardSystem>().UseCard(this);
+        yield return ServiceLocator.Get<ICardSystem>().MoveCardToCenter(this);
         Destroy(gameObject);
     }
 
     void OnMouseOver() {
         if (isCardClicked) return;
-        Debug.Log("OnMouseOver");
-        CardManager.Inst.CardMouseOver(this);
+        ServiceLocator.Get<ICardSystem>().CardMouseOver(this);
     }
 
     void OnMouseExit() {
         if (isCardClicked) return;
-        Debug.Log("OnMouseExit");
-        CardManager.Inst.CardMouseExit(this);
+        ServiceLocator.Get<ICardSystem>().CardMouseExit(this);
     }
 
     void OnMouseDown() {
         if (isCardClicked) return;
-        Debug.Log("OnMouseDown");
-        CardManager.Inst.ScaleCard(this, new Vector2(2.2f, 2.2f), 0.1f);
+        ServiceLocator.Get<ICardSystem>().ScaleCard(this, new Vector2(2.2f, 2.2f), 0.1f);
     }
 
     void OnMouseUpAsButton() {

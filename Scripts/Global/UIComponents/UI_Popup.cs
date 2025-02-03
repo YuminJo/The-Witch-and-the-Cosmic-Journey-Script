@@ -7,17 +7,17 @@ public class UI_Popup : UI_Base
         if (base.Init() == false)
             return false;
         
-        Managers.UI.SetCanvas(gameObject, true);
+        ServiceLocator.Get<UIManager>().SetCanvas(gameObject, true);
         return true;
     }
 
     public virtual void ClosePopupUI()
     {
-        Managers.UI.ClosePopupUI(this);
+        ServiceLocator.Get<UIManager>().ClosePopupUI(this);
     }
     
     public virtual void SetCanvas(GameObject go, bool sort = true , bool canvascamera = false)
     {
-        Managers.UI.SetCanvas(go, sort, canvascamera);
+        ServiceLocator.Get<UIManager>().SetCanvas(go, sort, canvascamera);
     }
 }

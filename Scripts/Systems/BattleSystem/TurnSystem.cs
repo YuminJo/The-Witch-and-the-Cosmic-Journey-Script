@@ -11,15 +11,7 @@ interface ITurnSystem {
 
 public class TurnSystem : MonoBehaviour, ITurnSystem
 {
-    public static TurnSystem Inst { get; private set; } 
     Queue<GameEntity> _entityQueue = new();
-    void Awake() {
-        if (Inst != null && Inst != this) {
-            Destroy(gameObject); // 중복된 인스턴스가 생성되는 것 방지
-        } else {
-            Inst = this;
-        }
-    }
 
     [Header("Develop")]
     [SerializeField] private ETurnMode eTurnMode;
@@ -50,7 +42,7 @@ public class TurnSystem : MonoBehaviour, ITurnSystem
     public static event Action<bool> OnTurnStarted;
 
     public void StartGame() => ShowBattleViewPopup();
-    private void ShowBattleViewPopup() => Managers.UI.ShowPopupUI<BattleView>(callback: (popup) => {
+    private void ShowBattleViewPopup() => ServiceLocator.Get<UIManager>().ShowPopupUI<BattleView>(callback: (popup) => {
         GameSetup();
     });
     
@@ -58,7 +50,8 @@ public class TurnSystem : MonoBehaviour, ITurnSystem
         OnClickSkillButton += ClickSkillButton;
         OnEndTurn += EndTurn;
         
-        CardManager.Inst.SetupItemBuffer();
+        ServiceLocator.Get<ICardSystem>().Init();
+        ServiceLocator.Get<ICardSystem>().SetupItemBuffer();
         OnLoadTestData();
         
         // fastMode에 따라 delay 설정
@@ -77,7 +70,7 @@ public class TurnSystem : MonoBehaviour, ITurnSystem
     }
 
     private void OnLoadTestData() {
-        Managers.UI.PeekPopupUI<BattleView>();
+        ServiceLocator.Get<UIManager>().PeekPopupUI<BattleView>();
         
         Enemy enemy01 = new Enemy("enemy01", 100, 100, 10, 4, 3, EnemyType.Normal);
         Enemy enemy02 = new Enemy("enemy02", 100, 100, 20, 5, 3, EnemyType.Normal);

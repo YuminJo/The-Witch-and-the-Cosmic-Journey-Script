@@ -13,18 +13,25 @@ public class BaseScene : MonoBehaviour
         Init();
     }
 
-    protected virtual bool Init()
-    {
+    protected virtual bool Init() {
         if (_init)
             return false;
 
         _init = true;
-        Managers.Init();
+        
+        GameObject initalizerObject = GameObject.Find("@GameInitializer");
+        GameObject eventObject = GameObject.Find("EventSystem");
 
-        GameObject go = GameObject.Find("EventSystem");
-        if (go == null)
-        {
-            Managers.Resource.Instantiate("EventSystem", null, (go) =>
+        if (initalizerObject == null) {
+            if (initalizerObject == null)
+                initalizerObject = new GameObject { name = "@GameInitializer" };
+
+            Utils.GetOrAddComponent<GameInitializer>(initalizerObject);
+            DontDestroyOnLoad(initalizerObject);
+        }
+
+        if (eventObject == null) {
+            ServiceLocator.Get<ResourceManager>().Instantiate("EventSystem", null, (go) =>
             {
                 go.name = "@EventSystem";
             });
@@ -32,6 +39,7 @@ public class BaseScene : MonoBehaviour
 
         return true;
     }
+    
 
     public virtual void Clear()
     {

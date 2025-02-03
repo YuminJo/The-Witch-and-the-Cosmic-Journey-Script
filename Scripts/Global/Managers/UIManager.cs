@@ -1,17 +1,28 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class UIManager
+public interface IUIManager {
+    void SetCanvas(GameObject go, bool sort = true, bool canvascamera = false);
+    void MakeSubItem<T>(Transform parent = null, string key = null, Action<T> callback = null) where T : UI_Base;
+    void ShowSceneUI<T>(string key = null, Action<T> callback = null) where T : UI_Scene;
+    void ShowPopupUI<T>(string key = null, Transform parent = null, Action<T> callback = null) where T : UI_Popup;
+    T FindPopup<T>() where T : UI_Popup;
+    T PeekPopupUI<T>() where T : UI_Popup;
+    void ClosePopupUI(UI_Popup popup);
+    void ClosePopupUI();
+    void CloseAllPopupUI();
+    void Clear();
+}
+
+public class UIManager : IUIManager
 {
     int _order = 20;
     
     Stack<UI_Popup> _popupStack = new();
-    public UI_Scene SceneUI { get; set; }
-
-    public GameObject Root
+    private UI_Scene SceneUI { get; set; }
+    private GameObject Root
     {
         get
         {
@@ -50,7 +61,7 @@ public class UIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        Managers.Resource.Instantiate(key, parent, (go) =>
+        ServiceLocator.Get<ResourceManager>().Instantiate(key, parent, (go) =>
         {
             T subItem = Utils.GetOrAddComponent<T>(go);
             callback?.Invoke(subItem);
@@ -62,7 +73,7 @@ public class UIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        Managers.Resource.Instantiate(key, Root.transform, (go) =>
+        ServiceLocator.Get<ResourceManager>().Instantiate(key, Root.transform, (go) =>
         {
             T sceneUI = Utils.GetOrAddComponent<T>(go);
             SceneUI = sceneUI;
@@ -75,7 +86,7 @@ public class UIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        Managers.Resource.Instantiate(key, null, (go) =>
+        ServiceLocator.Get<ResourceManager>().Instantiate(key, null, (go) =>
         {
             T popup = Utils.GetOrAddComponent<T>(go);
             _popupStack.Push(popup);
@@ -122,7 +133,7 @@ public class UIManager
             return;
 
         UI_Popup popup = _popupStack.Pop();
-        Managers.Resource.Destroy(popup.gameObject);
+        ServiceLocator.Get<ResourceManager>().Destroy(popup.gameObject);
         popup = null;
         _order--;
     }

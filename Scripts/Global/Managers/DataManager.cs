@@ -6,6 +6,7 @@ using TMPro;
 using UnityEngine;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Unity.Android.Gradle.Manifest;
 
 public interface ILoader<Key, Item>
 {
@@ -28,8 +29,7 @@ public class DataManager {
     private IEnumerator LoadJson<Loader, Key, Value>(string key, Action<Loader> callback) where Loader : ILoader<Key, Value>
     {
         bool isDone = false;
-        Managers.Resource.LoadAsync<TextAsset>(key, (textAsset) =>
-        {
+        ServiceLocator.Get<ResourceManager>().LoadAsync<TextAsset>(key, (textAsset) => {
             Loader loader = JsonUtility.FromJson<Loader>(textAsset.text);
             callback?.Invoke(loader);
             isDone = true;

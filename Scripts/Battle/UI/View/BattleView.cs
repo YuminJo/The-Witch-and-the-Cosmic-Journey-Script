@@ -17,6 +17,7 @@ public class BattleView : UI_Popup, IBattleView {
     }
     
     private BattlePresenter presenter;
+    private ResourceManager resourceManager;
     
     public override bool Init() {
         if (base.Init() == false)
@@ -28,12 +29,13 @@ public class BattleView : UI_Popup, IBattleView {
         BindObject(typeof(GameObjects));
         
         presenter = new BattlePresenter(this);
+        resourceManager = ServiceLocator.Get<ResourceManager>();
         
         GetButton((int)Buttons.EndTurnButton).gameObject.BindEvent(OnClickEndTurn);
         GetButton((int)Buttons.CardSelectButton).gameObject.BindEvent(() => {
             TurnSystem.OnClickSkillButton?.Invoke(); });
 
-        foreach (var character in Managers.Game.GetSelectedCharacters()) {
+        foreach (var character in GameInitializer.GameManager.GetSelectedCharacters()) {
             CreateCharacterView(character); }
         
         return true;
@@ -46,7 +48,7 @@ public class BattleView : UI_Popup, IBattleView {
     private void CreateCharacterView(Character character) {
         var characterGroup = GetObject((int)GameObjects.CharacterGroup);
         
-        Managers.Resource.Instantiate(nameof(BattleCharacterView), characterGroup.transform, (go) => {
+        ServiceLocator.Get<ResourceManager>().Instantiate(nameof(BattleCharacterView), characterGroup.transform, (go) => {
             var battleCharacterView = go.GetComponent<BattleCharacterView>();
             if (battleCharacterView == null) {
                 Debug.LogError("BattleCharacterView component is missing on the instantiated object");

@@ -8,7 +8,16 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using Object = UnityEngine.Object;
 
-public class ResourceManager
+public interface IResourceManager
+{
+    void LoadAsync<T>(string key = null, Action<T> callback = null) where T : UnityEngine.Object;
+    void Release(string key);
+    void Clear();
+    void Instantiate(string key, Transform parent = null, Action<GameObject> callback = null);
+    void Destroy(GameObject go, float seconds = 0.0f);
+}
+
+public class ResourceManager : IResourceManager
 {
     // 실제 로드한 리소스.
     Dictionary<string, UnityEngine.Object> _resources = new Dictionary<string, UnityEngine.Object>();
