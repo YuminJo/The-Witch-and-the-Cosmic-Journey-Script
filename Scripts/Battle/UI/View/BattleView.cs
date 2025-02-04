@@ -1,6 +1,6 @@
-using System;
-using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Events;
 
 public interface IBattleView {
 }
@@ -17,48 +17,39 @@ public class BattleView : UI_Popup, IBattleView {
     }
     
     private BattlePresenter presenter;
-    private ResourceManager resourceManager;
     
     public override bool Init() {
         if (base.Init() == false)
             return false;
         
-        base.SetCanvas(gameObject, false, true);
-
+        presenter = new BattlePresenter(this);
+        
         BindButton(typeof(Buttons));
         BindObject(typeof(GameObjects));
         
-        presenter = new BattlePresenter(this);
-        resourceManager = ServiceLocator.Get<ResourceManager>();
-        
-        GetButton((int)Buttons.EndTurnButton).gameObject.BindEvent(OnClickEndTurn);
-        GetButton((int)Buttons.CardSelectButton).gameObject.BindEvent(() => {
-            TurnSystem.OnClickSkillButton?.Invoke(); });
-
-        foreach (var character in GameInitializer.GameManager.GetSelectedCharacters()) {
-            CreateCharacterView(character); }
-        
+        SetCanvas(gameObject, false, true);
         return true;
     }
     
     /// <summary>
-    /// Instantiates a new BattleCharacterView and sets its character data.
+    /// 캐릭터의 창을 만들고 데이터를 설정합니다.
     /// </summary>
-    /// <param name="character">The character data to set in the BattleCharacterView.</param>
-    private void CreateCharacterView(Character character) {
+    /// <param name="character">캐릭터의 데이터값</param>
+    public async UniTask CreateCharacterView(Character character) {
+        await UniTask.WaitUntil(() => _init);
+    
         var characterGroup = GetObject((int)GameObjects.CharacterGroup);
-        
-        ServiceLocator.Get<ResourceManager>().Instantiate(nameof(BattleCharacterView), characterGroup.transform, (go) => {
+    
+        ServiceLocator.Get<IResourceManager>().Instantiate(nameof(BattleCharacterView), characterGroup.transform, (go) => {
             var battleCharacterView = go.GetComponent<BattleCharacterView>();
-            if (battleCharacterView == null) {
-                Debug.LogError("BattleCharacterView component is missing on the instantiated object");
-                return;
-            }
             battleCharacterView.SetCharacterData(character);
         });
     }
-
-    public void OnClickEndTurn() {
-        TurnSystem.OnEndTurn?.Invoke();
+    
+    public async UniTask OnClickCardSelectButton(TurnSystem turnSystem) {
+        await UniTask.WaitUntil(() => _init);
+        
+        GetButton((int)Buttons.CardSelectButton).gameObject.BindEvent(()
+            => { turnSystem.ClickSkillButtonAsync().Forget(); });
     }
 }

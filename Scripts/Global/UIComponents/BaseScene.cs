@@ -31,7 +31,7 @@ public class BaseScene : MonoBehaviour
         }
 
         if (eventObject == null) {
-            ServiceLocator.Get<ResourceManager>().Instantiate("EventSystem", null, (go) =>
+            ServiceLocator.Get<IResourceManager>().Instantiate("EventSystem", null, (go) =>
             {
                 go.name = "@EventSystem";
             });

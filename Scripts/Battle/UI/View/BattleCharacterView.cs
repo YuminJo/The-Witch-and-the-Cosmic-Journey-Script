@@ -1,12 +1,13 @@
 using System;
+using DG.Tweening;
 using UnityEngine;
+using UnityEngine.UI;
 
 public interface IBattleCharacterView {
     void SetCharacterData(Character character);
 }
 
-public class BattleCharacterView : UI_Popup, IBattleCharacterView
-{
+public class BattleCharacterView : UI_Popup, IBattleCharacterView {
     enum GameObjects {
         EffectLayout
     }
@@ -19,8 +20,7 @@ public class BattleCharacterView : UI_Popup, IBattleCharacterView
     
     private Character _characterData;
     
-    public override bool Init()
-    {
+    public override bool Init() {
         if (base.Init() == false)
             return false;
 
@@ -29,16 +29,17 @@ public class BattleCharacterView : UI_Popup, IBattleCharacterView
         
         GetImage((int)Images.TurnChecker).gameObject.SetActive(false);
         
-        //TODO: Set character image and hp bar
-        
         return true;
     }
-    
-    public void SetCharacterData(Character character) {
-        _characterData = character;
-    }
 
-    private void ThisCharacterTurn() {
-        GetImage((int)Images.TurnChecker).gameObject.SetActive(true);
+    public void OnDamaged(int value) {
+        _characterData.OnDamage(value);
+        
+        Image hpBar = GetImage((int)Images.HpBar);
+        DOTween.Kill(hpBar);
+        DOTween.To(() => hpBar.fillAmount, x 
+            => hpBar.fillAmount = x, Utils.GetHpPercent(_characterData.Hp,_characterData.MaxHp), 0.5f);
     }
+    
+    public void SetCharacterData(Character character) => _characterData = character;
 }

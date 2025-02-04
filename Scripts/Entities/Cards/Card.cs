@@ -16,10 +16,11 @@ public enum ValueType {
 public class Card {
     public int id;
     public string templateId;
+    public string character;
     public CardType type;
     public int cost;
     public string description;
-    public int range;
+    public bool isTargetAll;
     public ValueType valueType;
     public float value;
     public Sprite sprite;
@@ -29,6 +30,7 @@ public class Card {
 [System.Serializable]
 public class Effect {
     public string type;
+    public int range;
     public string value;
     public string stat;
     public int turn;

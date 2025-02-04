@@ -20,8 +20,7 @@ public class DataManager {
         yield return LoadJson<CardDataLoader, int, Card>("CardData", (loader) => { Cards = loader.MakeDic(); });
     }
     
-    public bool Loaded()
-    {
+    public bool Loaded() {
         if (Cards == null) return false;
         return true;
     }
@@ -29,7 +28,7 @@ public class DataManager {
     private IEnumerator LoadJson<Loader, Key, Value>(string key, Action<Loader> callback) where Loader : ILoader<Key, Value>
     {
         bool isDone = false;
-        ServiceLocator.Get<ResourceManager>().LoadAsync<TextAsset>(key, (textAsset) => {
+        ServiceLocator.Get<IResourceManager>().LoadAsync<TextAsset>(key, (textAsset) => {
             Loader loader = JsonUtility.FromJson<Loader>(textAsset.text);
             callback?.Invoke(loader);
             isDone = true;

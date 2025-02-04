@@ -75,7 +75,8 @@ public class Utils
             return transform.gameObject;
         return null;
     }
+    
+    public static float GetHpPercent(float currentHp, float maxHp) => currentHp / maxHp;
 
     public static void GlobalException(string msg) => Debug.LogError(":::GLOBAL EXCEPTION::: " + msg);
-    
 }

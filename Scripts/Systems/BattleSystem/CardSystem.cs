@@ -1,105 +1,111 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using DG.Tweening;
 using Sirenix.OdinInspector;
+using UniRx;
+using Cysharp.Threading.Tasks;
+using Random = UnityEngine.Random;
 
 public interface ICardSystem {
-    void Init();
     void SetupItemBuffer();
-    void CardMouseOver(CardView card);
-    void CardMouseExit(CardView card);
-    void UseCard(CardView card);
-    void ScaleCard(CardView card, Vector2 scale, float duration);
-    IEnumerator MoveCardToCenter(CardView card);
+    void CardMouseOver(BattleCardView battleCard, Card cardData);
+    void CardMouseExit(BattleCardView battleCard);
+    void UseOrSelectCard(BattleCardView battleCard, Card cardData);
+    void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration);
+    void AddCard();
 }
 
-public class CardSystem : MonoBehaviour, ICardSystem {
-    [Required] private GameObject _cardPrefab;
-
-    [Required] [SerializeField] [FoldoutGroup("Card Env")] [ReadOnly]
-    List<CardView> myCards;
-
-    [Required] [SerializeField] [FoldoutGroup("Card Env")]
-    Transform myCardLeft;
-
-    [Required] [SerializeField] [FoldoutGroup("Card Env")]
-    Transform myCardRight;
-
-    [Required] [SerializeField] [FoldoutGroup("Card Env")]
-    Transform cardSpawnPoint;
-
-    CardView selectCard;
-    List<Card> cardBuffer;
-
-    void Start() {
-        ServiceLocator.Register<ICardSystem>(this);
+public class CardSystem : Object_Base, ICardSystem {
+    enum GameObjects {
+        CardSpawnPoint,
+        MyCardLeft,
+        MyCardRight
     }
-    
-    public void Init() {
-        ServiceLocator.Get<ResourceManager>().LoadAsync<GameObject>("CardPrefab", (result) => _cardPrefab = result);
 
-#if UNITY_EDITOR
-        if (myCardLeft == null) Utils.GlobalException("myCardLeft is null");
-        if (myCardRight == null) Utils.GlobalException("myCardRight is null");
-        if (cardSpawnPoint == null) Utils.GlobalException("cardSpawnPoint is null");
-#endif
-        TurnSystem.OnAddCard += AddCard;
+    //TODO: 나중에 카드 데이터를 불러오는 방식을 바꿔야함
+    private List<Card> _cardBuffer;
+    private ReactiveCollection<BattleCardView> _myCards = new();
+    private GameObject _cardPrefab;
+    private Card _selectCard;
+    
+    public override bool Init() {
+        if (base.Init() == false)
+            return false;
+        
+        BindObject(typeof(GameObjects));
+
+        ServiceLocator.Register<ICardSystem>(this);
+        ServiceLocator.Get<IResourceManager>().LoadAsync<GameObject>("CardPrefab", (result) => _cardPrefab = result);
+        
+        // 카드 추가 이벤트
+        _myCards.ObserveAdd().Subscribe(addEvent => {
+                SetOriginOrder();
+                CardAlignment();
+            })
+            .AddTo(this);
+        
+        return true;
     }
     
     public void UnRegisterService() => ServiceLocator.UnRegister<ICardSystem>();
 
+    /// <summary>
+    /// 카드 버퍼를 세팅합니다. 랜덤으로 섞어줍니다.
+    /// </summary>
     public void SetupItemBuffer() {
-        cardBuffer = new List<Card>(100);
-        for (int i = 0; i < GameInitializer.DataManager.Cards.Count; i++) {
-            Debug.Log(GameInitializer.DataManager.Cards.Count);
-            Card item = GameInitializer.DataManager.Cards[i];
-            cardBuffer.Add(item);
-        }
+        _cardBuffer = new List<Card>(100);
 
-        for (int i = 0; i < cardBuffer.Count; i++) {
-            int rand = Random.Range(i, cardBuffer.Count);
-            Card temp = cardBuffer[i];
-            cardBuffer[i] = cardBuffer[rand];
-            cardBuffer[rand] = temp;
-        }
+        ServiceLocator.Get<DataManager>().Cards
+            .ToObservable()
+            .Subscribe(card => _cardBuffer.Add(card.Value))
+            .AddTo(this); // 메모리 누수 방지
+
+        _cardBuffer = _cardBuffer.OrderBy(_ => Random.value).ToList();
     }
 
-    void AddCard() {
-        var cardObject = Instantiate(_cardPrefab, cardSpawnPoint.position, Utils.QI);
-        myCards.Add(cardObject.GetComponent<CardView>());
-        cardObject.GetComponent<CardView>().SetCardData(cardBuffer[myCards.Count - 1]);
+    
+    /// <summary>
+    /// 카드를 추가합니다.
+    /// </summary>
+    public void AddCard() {
+        var cardObject = Instantiate(_cardPrefab, GetObject((int)GameObjects.CardSpawnPoint).transform.position, Utils.QI);
+        var battleCardView = cardObject.GetComponent<BattleCardView>();
         
-        SetOriginOrder();
-        CardAlignment();
+        battleCardView.SetCardData(_cardBuffer[_myCards.Count]);
+        _myCards.Add(battleCardView);  // 리스트에 추가하면 자동으로 반응
     }
-
-    public void UseCard(CardView card) {
-        myCards.Remove(card);
-        selectCard = null;
+    
+    /// <summary>
+    /// 카드가 isTargetAll에 따라 전체 대상인지 아닌지에 따라 카드를 사용하거나 선택합니다.
+    /// </summary>
+    /// <param name="battleCard"></param>
+    public void UseOrSelectCard(BattleCardView battleCard, Card cardData) {
+        _selectCard = null;
         SetOriginOrder();
         CardAlignment();
     }
 
     void SetOriginOrder() {
-        for (int i = 0; i < myCards.Count; i++) {
-            myCards[i]?.GetComponent<Order>().SetOriginOrder(i);
+        for (int i = 0; i < _myCards.Count; i++) {
+            _myCards[i]?.GetComponent<Order>().SetOriginOrder(i);
         }
     }
 
     void CardAlignment() {
-        List<PRS> originCardPRSs = RoundAlignment(myCardLeft, myCardRight, myCards.Count, 0.5f, Vector3.one * CardView.cardSize);
+        List<PRS> originCardPRSs = RoundAlignment(_myCards.Count, 0.5f, Vector3.one * BattleCardView.CardSize);
 
-        var targetCards = myCards;
+        var targetCards = _myCards;
         for (int i = 0; i < targetCards.Count; i++) {
             var targetCard = targetCards[i];
 
-            targetCard.originPRS = originCardPRSs[i];
-            MoveTransform(targetCard, targetCard.originPRS, true, 0.7f);
+            targetCard.originPrs = originCardPRSs[i];
+            MoveTransform(targetCard, targetCard.originPrs, true, 0.7f);
         }
     }
 
-    List<PRS> RoundAlignment(Transform leftTr, Transform rightTr, int objCount, float height, Vector3 scale) {
+    List<PRS> RoundAlignment(int objCount, float height, Vector3 scale) {
         float[] objLerps = new float[objCount];
         List<PRS> results = new List<PRS>(objCount);
 
@@ -119,7 +125,9 @@ public class CardSystem : MonoBehaviour, ICardSystem {
                     objLerps[i] = interval * i;
                 break;
         }
-
+        
+        var leftTr = GetObject((int)GameObjects.MyCardLeft).transform;
+        var rightTr = GetObject((int)GameObjects.MyCardRight).transform;
         for (int i = 0; i < objCount; i++) {
             var targetPos = Vector3.Lerp(leftTr.position, rightTr.position, objLerps[i]);
             var targetRot = Utils.QI;
@@ -136,67 +144,67 @@ public class CardSystem : MonoBehaviour, ICardSystem {
         return results;
     }
 
-    public void CardMouseOver(CardView card) {
-        selectCard = card;
-        EnlargeCard(true, card);
+    public void CardMouseOver(BattleCardView battleCard, Card cardData) {
+        _selectCard = cardData;
+        EnlargeCard(true, battleCard);
     }
 
-    public void CardMouseExit(CardView card) {
-        EnlargeCard(false, card);
+    public void CardMouseExit(BattleCardView battleCard) {
+        EnlargeCard(false, battleCard);
     }
 
-    void EnlargeCard(bool isEnlarge, CardView card) {
-        DOTween.Kill(card.transform);
+    void EnlargeCard(bool isEnlarge, BattleCardView battleCard) {
+        DOTween.Kill(battleCard.transform);
         if (isEnlarge) {
-            Vector3 enlargePos = new Vector3(card.originPRS.pos.x, -4.8f, -10f);
-            MoveTransform(card, new PRS(enlargePos, Utils.QI, Vector3.one * 2.5f), true, 0.5f);
-            AdjustOtherCards(card, true);
+            Vector3 enlargePos = new Vector3(battleCard.originPrs.pos.x, -4.8f, -10f);
+            MoveTransform(battleCard, new PRS(enlargePos, Utils.QI, Vector3.one * 2.5f), true, 0.5f);
+            AdjustOtherCards(battleCard, true);
         } else {
-            MoveTransform(card, card.originPRS, true, 0.3f);
-            AdjustOtherCards(card, false);
+            MoveTransform(battleCard, battleCard.originPrs, true, 0.3f);
+            AdjustOtherCards(battleCard, false);
         }
 
-        card.GetComponent<Order>().SetMostFrontOrder(isEnlarge);
+        battleCard.GetComponent<Order>().SetMostFrontOrder(isEnlarge);
     }
 
-    void AdjustOtherCards(CardView centerCard, bool isEnlarge) {
+    void AdjustOtherCards(BattleCardView centerBattleCard, bool isEnlarge) {
         float offset = 3.0f;
-        for (int i = 0; i < myCards.Count; i++) {
-            if (myCards[i] == centerCard) continue;
+        for (int i = 0; i < _myCards.Count; i++) {
+            if (_myCards[i] == centerBattleCard) continue;
 
-            Vector3 newPos = myCards[i].originPRS.pos;
+            Vector3 newPos = _myCards[i].originPrs.pos;
             if (isEnlarge) {
-                if (myCards[i].originPRS.pos.x < centerCard.originPRS.pos.x) {
+                if (_myCards[i].originPrs.pos.x < centerBattleCard.originPrs.pos.x) {
                     newPos.x -= offset;
                 } else {
                     newPos.x += offset;
                 }
             }
 
-            MoveTransform(myCards[i], new PRS(newPos, myCards[i].originPRS.rot, myCards[i].originPRS.scale), true, 0.5f);
+            MoveTransform(_myCards[i], new PRS(newPos, _myCards[i].originPrs.rot, _myCards[i].originPrs.scale), true, 0.5f);
         }
     }
 
-    public void MoveTransform(CardView card, PRS prs, bool useDotween, float dotweenTime = 0) {
-        DOTween.Kill(card.transform);
+    public void MoveTransform(BattleCardView battleCard, PRS prs, bool useDotween, float dotweenTime = 0) {
+        DOTween.Kill(battleCard.transform);
         if (useDotween) {
-            card.transform.DOMove(prs.pos, dotweenTime).SetEase(Ease.OutQuart);
-            card.transform.DORotateQuaternion(prs.rot, dotweenTime).SetEase(Ease.OutQuart);
-            card.transform.DOScale(prs.scale, dotweenTime).SetEase(Ease.OutQuart);
+            battleCard.transform.DOMove(prs.pos, dotweenTime).SetEase(Ease.OutQuart);
+            battleCard.transform.DORotateQuaternion(prs.rot, dotweenTime).SetEase(Ease.OutQuart);
+            battleCard.transform.DOScale(prs.scale, dotweenTime).SetEase(Ease.OutQuart);
         } else {
-            card.transform.position = prs.pos;
-            card.transform.rotation = prs.rot;
-            card.transform.localScale = prs.scale;
+            battleCard.transform.position = prs.pos;
+            battleCard.transform.rotation = prs.rot;
+            battleCard.transform.localScale = prs.scale;
         }
     }
 
-    public IEnumerator MoveCardToCenter(CardView card) {
-        MoveTransform(card, new PRS(Vector3.zero, Quaternion.identity, Vector3.one * CardView.cardSize), true, 0.5f);
-        yield return new WaitForSeconds(1f);
-    }
+    /*public async UniTask MoveCardToCenter(BattleCardView battleCard) {
+        MoveTransform(battleCard, new PRS(Vector3.zero, Quaternion.identity, Vector3.one * BattleCardView.cardSize), true, 0.5f);
+        await UniTask.Delay(1000);
+    }*/
 
-    public void ScaleCard(CardView card, Vector2 scale, float duration) {
-        DOTween.Kill(card.transform);
-        card.transform.DOScale(scale, duration).SetEase(Ease.InCirc);
+    public void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration) {
+        DOTween.Kill(battleCard.transform);
+        battleCard.transform.DOScale(scale, duration).SetEase(Ease.InCirc);
     }
 }

@@ -2,8 +2,8 @@ using System.Collections;
 using UnityEngine;
 
 public class GameInitializer : MonoBehaviour {
-    public static GameManager GameManager;
-    public static DataManager DataManager;
+    private GameManager _gameManager;
+    private DataManager _dataManager;
     void Start() => Initialize();
 
     void Initialize() {
@@ -14,16 +14,16 @@ public class GameInitializer : MonoBehaviour {
     }
     
     public void Init() {
-        GameManager = new GameManager();
-        DataManager = new DataManager();
+        _gameManager = new GameManager();
+        _dataManager = new DataManager();
         
         Application.targetFrameRate = 60;
         DontDestroyOnLoad(this);
     }
     
     void ServiceRegistration() {
-        ServiceLocator.Register(GameManager);
-        ServiceLocator.Register(DataManager);
+        ServiceLocator.Register<IGameManager>(_gameManager);
+        ServiceLocator.Register(_dataManager);
         ServiceLocator.Register<IResourceManager>(new ResourceManager());
         ServiceLocator.Register<IUIManager>(new UIManager());
         //ServiceLocator.Register(new EventManager());
@@ -32,7 +32,7 @@ public class GameInitializer : MonoBehaviour {
     
     void StartWaitforData() => StartCoroutine(WaitforData());
     private IEnumerator WaitforData() {
-        ServiceLocator.Get<GameManager>().Init();
+        ServiceLocator.Get<IGameManager>().Init();
         StartCoroutine(ServiceLocator.Get<DataManager>().LoadData());
         
         Debug.Log("Loaded Finished");

@@ -38,7 +38,7 @@ public class RecipesData {
         }
         difficulty = difficultyValue;
         
-        ServiceLocator.Get<ResourceManager>().LoadAsync<Sprite>(sprite, callback: (recipeImg) => {
+        ServiceLocator.Get<IResourceManager>().LoadAsync<Sprite>(sprite, callback: (recipeImg) => {
             recipeSprite = recipeImg;
         });
     }

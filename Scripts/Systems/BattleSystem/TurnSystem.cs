@@ -3,18 +3,22 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.Linq;
-using UnityEngine.Serialization;
+using Cysharp.Threading.Tasks;
+using UniRx;
 
-interface ITurnSystem {
-    void StartGame();
+public class AttackOrder {
+    public Enemy Enemy { get; set; }
+    public Character Character { get; set; }
+
+    public AttackOrder(Enemy enemy, Character character)
+    {
+        Enemy = enemy;
+        Character = character;
+    }
 }
 
-public class TurnSystem : MonoBehaviour, ITurnSystem
-{
-    Queue<GameEntity> _entityQueue = new();
-
+public class TurnSystem : UnitaskBase {
     [Header("Develop")]
-    [SerializeField] private ETurnMode eTurnMode;
     [SerializeField] private bool fastMode;
     [SerializeField] private int startCardCount;
     [SerializeField] private int currentAPCount;
@@ -22,110 +26,92 @@ public class TurnSystem : MonoBehaviour, ITurnSystem
     [SerializeField] private int currentTurn;
 
     [Header("Properties")]
-    public bool IsLoading { get; private set; } // 게임 끝나면 isLoading을 true로 하면 카드와 엔티티 클릭방지
-    private bool _myTurn;
+    // 게임 끝나면 isLoading을 true로 하면 카드와 엔티티 클릭방지
+    public bool IsLoading { get; private set; }
 
-    enum ETurnMode { My, Enemy }
-
+    private enum ETurnMode { My, Enemy }
     private const float TURN_DELAY_SHORT = 0.05f;
     private const float TURN_DELAY_LONG = 0.7f;
     
-    private WaitForSeconds delayShort;
-    private WaitForSeconds delayLong;
-    
-    [Range(0,3)] private List<Character> _currentCharacters = new();
-    [Range(0,3)] private List<Enemy> _currentTurnEnemys = new();
+    private List<Character> _characterList = new();
+    private Queue<Enemy> _enemyQueue = new();
+    private Queue<AttackOrder> _attackOrder = new();
 
-    public static Action OnClickSkillButton;
-    public static Action OnAddCard;
-    public static Action OnEndTurn;
-    public static event Action<bool> OnTurnStarted;
-
-    public void StartGame() => ShowBattleViewPopup();
-    private void ShowBattleViewPopup() => ServiceLocator.Get<UIManager>().ShowPopupUI<BattleView>(callback: (popup) => {
-        GameSetup();
-    });
+    public void StartGame() => GameSetup();
     
+    /// <summary>
+    /// 게임의 초기 셋업
+    /// </summary>
     private void GameSetup() {
-        OnClickSkillButton += ClickSkillButton;
-        OnEndTurn += EndTurn;
-        
-        ServiceLocator.Get<ICardSystem>().Init();
         ServiceLocator.Get<ICardSystem>().SetupItemBuffer();
         OnLoadTestData();
-        
-        // fastMode에 따라 delay 설정
-        delayShort = new WaitForSeconds(fastMode ? TURN_DELAY_SHORT : TURN_DELAY_LONG);
-        delayLong = new WaitForSeconds(TURN_DELAY_LONG);
-
-        // 턴 설정
-        switch (eTurnMode) {
-            case ETurnMode.My:
-                _myTurn = true;
-                break;
-            case ETurnMode.Enemy:
-                _myTurn = false;
-                break;
-        }
-    }
-
-    private void OnLoadTestData() {
-        ServiceLocator.Get<UIManager>().PeekPopupUI<BattleView>();
-        
-        Enemy enemy01 = new Enemy("enemy01", 100, 100, 10, 4, 3, EnemyType.Normal);
-        Enemy enemy02 = new Enemy("enemy02", 100, 100, 20, 5, 3, EnemyType.Normal);
-        Enemy enemy03 = new Enemy("enemy03", 100, 100, 30, 6, 3, EnemyType.Normal);
-    }
-
-    public List<Character> GetCurrentBattleCharacters() {
-        return _currentCharacters;
+        SetCurrentBattleCharacterList();
+        SetEnemyQueue();
+        ShowBattleViewPopup();
     }
 
     /// <summary>
-    /// Set the order of attack according to agi value
+    /// 테스트 데이터 로드
     /// </summary>
-    private void SetEntityQueue() {
-        _entityQueue.Clear();
+    private void OnLoadTestData() {
+        ServiceLocator.Get<IUIManager>().PeekPopupUI<BattleView>();
         
-        // 캐릭터와 적의 순서를 정하기 위해 agi값을 비교하여 큐에 삽입
-        //_currentSelectedCharacters.ForEach(character => _entityQueue.Enqueue(character));
-        //_currentEnemys.ForEach(enemy => _entityQueue.Enqueue(enemy));
+        Enemy enemy01 = new Enemy("enemy01", 100, 100, 4, 3, EnemyType.Normal);
+        Enemy enemy02 = new Enemy("enemy02", 100, 100, 5, 3, EnemyType.Normal);
+        Enemy enemy03 = new Enemy("enemy03", 100, 100, 6, 3, EnemyType.Normal);
         
-        // agi값을 기준으로 정렬
-        _entityQueue = new Queue<GameEntity>(_entityQueue.OrderBy(entity => entity.Agi));
-
-        //var entityComponent = _entityQueue.Peek().GetComponent<YourComponentType>();
+        _enemyQueue.Enqueue(enemy01);
+        _enemyQueue.Enqueue(enemy02);
+        _enemyQueue.Enqueue(enemy03);
+    }
+    
+    /// <summary>
+    /// 현재 선택된 캐릭터 리스트를 생성자 복사해서 가져온다.
+    /// </summary>
+    private void SetCurrentBattleCharacterList() {
+        var originalList = ServiceLocator.Get<IGameManager>().GetSelectedCharacters();
+        _characterList = originalList.Select(character => new Character(character)).ToList();
     }
 
-    private void ClickSkillButton() { StartCoroutine(ClickSkillButtonCo()); }
+    /// <summary>
+    /// 적의 공격 순서를 정한다.
+    /// </summary>
+    private void SetEnemyQueue() {
+        _attackOrder.Clear();
+        var orderedAttackOrders = _enemyQueue
+            .Select(enemy => new AttackOrder(enemy, SelectRandomCharacter(_characterList)))
+            .OrderBy(order => order.Enemy.Agi);
+        _attackOrder = new Queue<AttackOrder>(orderedAttackOrders);
+        _attackOrder.ToList().ForEach(order => Debug.Log($"Enemy: {order.Enemy.TemplateId}, Character: {order.Character.TemplateId}"));
+    }
+    private Character SelectRandomCharacter(List<Character> characters) 
+        => characters[UnityEngine.Random.Range(0, characters.Count)];
     
-    private IEnumerator ClickSkillButtonCo() {
+    /// <summary>
+    /// 전투 뷰 팝업을 보여준다.
+    /// </summary>
+    private void ShowBattleViewPopup() 
+        => ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleView>(callback: (popup)
+            => {
+            popup.OnClickCardSelectButton(this).Forget();
+            _characterList.ForEach(character => popup.CreateCharacterView(character).Forget());
+        });
+    
+    public async UniTask ClickSkillButtonAsync() {
         IsLoading = true;
-
+        
+        var cardSystem = ServiceLocator.Get<ICardSystem>();
         for (int i = 0; i < startCardCount; i++) {
-            yield return delayShort;
-            OnAddCard?.Invoke();
+            await UniTask.Delay(TimeSpan.FromSeconds(TURN_DELAY_SHORT));
+            cardSystem.AddCard();
         }
-        StartCoroutine(StartTurnCo());
-    }
-
-    private IEnumerator StartTurnCo()
-    {
-        IsLoading = true;
-        yield return delayLong;
-        IsLoading = false;
-        OnTurnStarted?.Invoke(_myTurn);
-    }
-    
-
-    private void EndTurn() {
-        //TODO: 턴 종료전 모든 행동 처리 확인 로직 추가
-        if (!_myTurn) return;
-        _myTurn = !_myTurn;
-        Debug.Log(_myTurn ? "TurnManager: 나의 턴" : "TurnManager: 적의 턴");
-    }
-
-    private void NextEntity() {
         
+        //await StartTurnAsync();
     }
+
+    /*private async UniTask StartTurnAsync() {
+        IsLoading = true;
+        await UniTask.Delay(TimeSpan.FromSeconds(TURN_DELAY_LONG));
+        IsLoading = false;
+    }*/
 }

@@ -61,7 +61,7 @@ public class UIManager : IUIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        ServiceLocator.Get<ResourceManager>().Instantiate(key, parent, (go) =>
+        ServiceLocator.Get<IResourceManager>().Instantiate(key, parent, (go) =>
         {
             T subItem = Utils.GetOrAddComponent<T>(go);
             callback?.Invoke(subItem);
@@ -73,7 +73,7 @@ public class UIManager : IUIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        ServiceLocator.Get<ResourceManager>().Instantiate(key, Root.transform, (go) =>
+        ServiceLocator.Get<IResourceManager>().Instantiate(key, Root.transform, (go) =>
         {
             T sceneUI = Utils.GetOrAddComponent<T>(go);
             SceneUI = sceneUI;
@@ -86,7 +86,7 @@ public class UIManager : IUIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        ServiceLocator.Get<ResourceManager>().Instantiate(key, null, (go) =>
+        ServiceLocator.Get<IResourceManager>().Instantiate(key, null, (go) =>
         {
             T popup = Utils.GetOrAddComponent<T>(go);
             _popupStack.Push(popup);
@@ -133,7 +133,7 @@ public class UIManager : IUIManager
             return;
 
         UI_Popup popup = _popupStack.Pop();
-        ServiceLocator.Get<ResourceManager>().Destroy(popup.gameObject);
+        ServiceLocator.Get<IResourceManager>().Destroy(popup.gameObject);
         popup = null;
         _order--;
     }
