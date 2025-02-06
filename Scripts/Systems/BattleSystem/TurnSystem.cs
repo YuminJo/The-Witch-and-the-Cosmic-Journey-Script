@@ -44,7 +44,7 @@ public class TurnSystem : UnitaskBase {
     /// </summary>
     private void GameSetup() {
         ServiceLocator.Get<ICardSystem>().SetupItemBuffer();
-        OnLoadTestData();
+        NotProd();
         SetCurrentBattleCharacterList();
         SetEnemyQueue();
         ShowBattleViewPopup();
@@ -53,7 +53,7 @@ public class TurnSystem : UnitaskBase {
     /// <summary>
     /// 테스트 데이터 로드
     /// </summary>
-    private void OnLoadTestData() {
+    private void NotProd() {
         ServiceLocator.Get<IUIManager>().PeekPopupUI<BattleView>();
         
         Enemy enemy01 = new Enemy("enemy01", 100, 100, 4, 3, EnemyType.Normal);

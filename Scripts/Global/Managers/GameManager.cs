@@ -13,14 +13,17 @@ public class GameManager : IGameManager {
 
     List<Character> _selectedCharacters = new();
     
-    public void Init() => OnLoadTestData();
+    public void Init() => NotProd();
     void Update() {
 #if UNITY_EDITOR
         InputCheatKey();
 #endif
     }
 
-    private void OnLoadTestData() {
+    /// <summary>
+    /// 테스트 데이터 로드
+    /// </summary>
+    private void NotProd() {
         Character sample01 = new Character("sample01", 100, 100, 1, 3, CharacterType.Tanker);
         Character sample02 = new Character("sample02", 100, 100, 2, 3, CharacterType.Dealer);
         Character sample03 = new Character("sample03", 100, 100, 3, 3, CharacterType.Supporter);

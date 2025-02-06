@@ -1,10 +1,13 @@
 using UnityEngine;
 
-public class EnemyView : Object_Base
+public class BattleEnemyView : Object_Base
 {
     enum GameObjects {
-        Hpbar
+        Hpbar,
+        TargetImage
     }
+    
+    private Enemy _enemyData;
     
     public override bool Init()
     {
@@ -12,7 +15,14 @@ public class EnemyView : Object_Base
             return false;
         
         BindObject(typeof(GameObjects));
-
+        
+        GetObject((int)GameObjects.TargetImage).SetActive(false);
         return true;
+    }
+    
+    void OnMouseUpAsButton() { 
+        bool isClicked = ServiceLocator.Get<ICardSystem>().SelectEnemy(_enemyData);
+        if (isClicked)
+            GetObject((int)GameObjects.TargetImage).SetActive(true);
     }
 }

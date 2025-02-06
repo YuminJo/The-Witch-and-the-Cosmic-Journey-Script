@@ -10,25 +10,31 @@ using Random = UnityEngine.Random;
 
 public interface ICardSystem {
     void SetupItemBuffer();
-    void CardMouseOver(BattleCardView battleCard, Card cardData);
+    void CardMouseOver(BattleCardView battleCard);
     void CardMouseExit(BattleCardView battleCard);
     void UseOrSelectCard(BattleCardView battleCard, Card cardData);
     void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration);
     void AddCard();
+    bool SelectEnemy(Enemy enemy);
 }
 
 public class CardSystem : Object_Base, ICardSystem {
     enum GameObjects {
         CardSpawnPoint,
         MyCardLeft,
-        MyCardRight
+        MyCardRight,
+        CardGroup
     }
 
     //TODO: 나중에 카드 데이터를 불러오는 방식을 바꿔야함
     private List<Card> _cardBuffer;
     private ReactiveCollection<BattleCardView> _myCards = new();
     private GameObject _cardPrefab;
-    private Card _selectCard;
+    
+    private Card _selectedCard;
+    private Enemy _selectedEnemy;
+    
+    private bool _isCardUsing;
     
     public override bool Init() {
         if (base.Init() == false)
@@ -37,14 +43,26 @@ public class CardSystem : Object_Base, ICardSystem {
         BindObject(typeof(GameObjects));
 
         ServiceLocator.Register<ICardSystem>(this);
-        ServiceLocator.Get<IResourceManager>().LoadAsync<GameObject>("CardPrefab", (result) => _cardPrefab = result);
+        ServiceLocator.Get<IResourceManager>().LoadAsync<GameObject>(nameof(BattleCardView), (result) => _cardPrefab = result);
         
         // 카드 추가 이벤트
-        _myCards.ObserveAdd().Subscribe(addEvent => {
+        _myCards.ObserveAdd().Subscribe(_ => {
                 SetOriginOrder();
                 CardAlignment();
             })
             .AddTo(this);
+        
+        // 적 선택 완료 이벤트
+        var enemySelectStream = Observable.EveryUpdate()
+            .Where(_ => Input.GetKeyUp(KeyCode.Space)) // 스페이스바를 눌렀을 때
+            .Throttle(TimeSpan.FromMilliseconds(300)); // 300ms 동안 쓰로틀링
+
+        // 선택된 카드가 있을 때만 처리
+        enemySelectStream
+            .Where(_ => _selectedEnemy != null) // 선택된 적이 있을 때
+            .Subscribe(_ => Attack())  // 공격 함수 호출
+            .AddTo(this); // 구독 해제 처리
+
         
         return true;
     }
@@ -73,6 +91,7 @@ public class CardSystem : Object_Base, ICardSystem {
         var cardObject = Instantiate(_cardPrefab, GetObject((int)GameObjects.CardSpawnPoint).transform.position, Utils.QI);
         var battleCardView = cardObject.GetComponent<BattleCardView>();
         
+        cardObject.transform.SetParent(GetObject((int)GameObjects.CardGroup).transform);
         battleCardView.SetCardData(_cardBuffer[_myCards.Count]);
         _myCards.Add(battleCardView);  // 리스트에 추가하면 자동으로 반응
     }
@@ -82,17 +101,65 @@ public class CardSystem : Object_Base, ICardSystem {
     /// </summary>
     /// <param name="battleCard"></param>
     public void UseOrSelectCard(BattleCardView battleCard, Card cardData) {
-        _selectCard = null;
+        if (_isCardUsing) return; _isCardUsing = true;
+        
+        //TODO: 카드 사용 로직
+        //Card Disappear Logic
+        GetObject((int)GameObjects.CardGroup).transform.DOMoveY(-15f,0.5f).SetEase(Ease.InOutQuad);
+        
+        //Target 판별
+        if (!cardData.isTargetAll) {
+            //TODO: Volume System
+            
+        }
+        else {
+            
+        }
+        _selectedCard = null;
         SetOriginOrder();
         CardAlignment();
     }
+    
+    /// <summary>
+    /// 선택된 적을 저장합니다.
+    /// </summary>
+    /// <param name="enemy">적 데이터</param>
+    public bool SelectEnemy(Enemy enemy) {
+        if (_selectedCard == null) return false;
+        _selectedEnemy = enemy;
+        return true;
+    }
+    
+    /// <summary>
+    /// 공격 로직
+    /// </summary>
+    private void Attack() {
+        
+    }
 
+    public void CardMouseOver(BattleCardView battleCard) {
+        if (_isCardUsing) return;
+        EnlargeCard(true, battleCard);
+    }
+
+    public void CardMouseExit(BattleCardView battleCard) {
+        if (_isCardUsing) return;
+        EnlargeCard(false, battleCard);
+    }
+    
+    public void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration) {
+        if (_isCardUsing) return;
+        DOTween.Kill(battleCard.transform);
+        battleCard.transform.DOScale(scale, duration).SetEase(Ease.InCirc);
+    }
+
+    #region Card Alignment
     void SetOriginOrder() {
         for (int i = 0; i < _myCards.Count; i++) {
             _myCards[i]?.GetComponent<Order>().SetOriginOrder(i);
         }
     }
-
+    
     void CardAlignment() {
         List<PRS> originCardPRSs = RoundAlignment(_myCards.Count, 0.5f, Vector3.one * BattleCardView.CardSize);
 
@@ -144,15 +211,6 @@ public class CardSystem : Object_Base, ICardSystem {
         return results;
     }
 
-    public void CardMouseOver(BattleCardView battleCard, Card cardData) {
-        _selectCard = cardData;
-        EnlargeCard(true, battleCard);
-    }
-
-    public void CardMouseExit(BattleCardView battleCard) {
-        EnlargeCard(false, battleCard);
-    }
-
     void EnlargeCard(bool isEnlarge, BattleCardView battleCard) {
         DOTween.Kill(battleCard.transform);
         if (isEnlarge) {
@@ -188,7 +246,7 @@ public class CardSystem : Object_Base, ICardSystem {
     public void MoveTransform(BattleCardView battleCard, PRS prs, bool useDotween, float dotweenTime = 0) {
         DOTween.Kill(battleCard.transform);
         if (useDotween) {
-            battleCard.transform.DOMove(prs.pos, dotweenTime).SetEase(Ease.OutQuart);
+            battleCard.transform.DOLocalMove(prs.pos, dotweenTime).SetEase(Ease.OutQuart);
             battleCard.transform.DORotateQuaternion(prs.rot, dotweenTime).SetEase(Ease.OutQuart);
             battleCard.transform.DOScale(prs.scale, dotweenTime).SetEase(Ease.OutQuart);
         } else {
@@ -197,14 +255,10 @@ public class CardSystem : Object_Base, ICardSystem {
             battleCard.transform.localScale = prs.scale;
         }
     }
+    #endregion
 
     /*public async UniTask MoveCardToCenter(BattleCardView battleCard) {
         MoveTransform(battleCard, new PRS(Vector3.zero, Quaternion.identity, Vector3.one * BattleCardView.cardSize), true, 0.5f);
         await UniTask.Delay(1000);
     }*/
-
-    public void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration) {
-        DOTween.Kill(battleCard.transform);
-        battleCard.transform.DOScale(scale, duration).SetEase(Ease.InCirc);
-    }
 }

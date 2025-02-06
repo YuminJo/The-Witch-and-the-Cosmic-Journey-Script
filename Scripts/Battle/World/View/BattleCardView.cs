@@ -1,9 +1,5 @@
-using System.Collections;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using TMPro;
-using DG.Tweening;
-using UnityEngine.Serialization;
 
 public class BattleCardView : Object_Base {
     enum GameObjects {
@@ -20,7 +16,6 @@ public class BattleCardView : Object_Base {
     }
 
     private Card _cardData;
-    private bool _isCardClicked;
     
     public PRS originPrs;
     public const float CardSize = 1.5f;
@@ -45,31 +40,28 @@ public class BattleCardView : Object_Base {
         GetText((int)Texts.Name).text = _cardData.templateId;
         GetText((int)Texts.Description).text = _cardData.description;
     }
-
-    private void OnClickCard() {
-        _isCardClicked = true;
+    
+    void IsCardControllable(bool isControllable) {
+        GetComponent<PolygonCollider2D>().enabled = isControllable;
+    }
+    
+    void OnMouseUpAsButton() { 
+        IsCardControllable(false);
         ServiceLocator.Get<ICardSystem>().UseOrSelectCard(this, _cardData);
         //await ServiceLocator.Get<ICardSystem>().MoveCardToCenter(this);
         //Destroy(gameObject);
     }
-    
-    void OnMouseUpAsButton() { 
-        if (_isCardClicked) return;
-        OnClickCard();
-    }
 
     void OnMouseOver() { 
-        if (_isCardClicked) return;
-        ServiceLocator.Get<ICardSystem>().CardMouseOver(this, _cardData);
+        ServiceLocator.Get<ICardSystem>().CardMouseOver(this);
     }
 
     void OnMouseExit() { 
-        if (_isCardClicked) return;
         ServiceLocator.Get<ICardSystem>().CardMouseExit(this);
     }
-
-    void OnMouseDown() { 
-        if (_isCardClicked) return;
+    
+    //TODO: 카드 클릭시 확대되는 기능 추가
+    /*void OnMouseDown() { 
         ServiceLocator.Get<ICardSystem>().ScaleCard(this, new Vector2(2.2f, 2.2f), 0.1f);
-    }
+    }*/
 }
