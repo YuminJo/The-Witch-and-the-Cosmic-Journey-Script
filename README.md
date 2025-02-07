@@ -12,7 +12,7 @@
 ## 📒 Skill Stack
 ### Project
 #### UNITY
-<img src="https://img.shields.io/badge/Unity6-000000?style=for-the-badge&logo=unity&logoColor=white"/> <img src="https://img.shields.io/badge/UniRx-000000?style=for-the-badge&logo=task&logoColor=white"/> <img src="https://img.shields.io/badge/UniTask-000000?style=for-the-badge&logo=task&logoColor=white"/>
+<img src="https://img.shields.io/badge/Unity6-000000?style=for-the-badge&logo=unity&logoColor=white"/> <img src="https://img.shields.io/badge/R3-000000?style=for-the-badge&logo=task&logoColor=white"/> <img src="https://img.shields.io/badge/UniTask-000000?style=for-the-badge&logo=task&logoColor=white"/>
 #### CI/CD
 <img src="https://img.shields.io/badge/GitHub Actions-2088FF?style=for-the-badge&logo=GitHub Actions&logoColor=white"/> <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=GitHub&logoColor=white"/>
 <br>
