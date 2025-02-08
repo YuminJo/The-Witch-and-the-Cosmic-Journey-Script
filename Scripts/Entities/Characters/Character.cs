@@ -14,7 +14,7 @@ public class Character : GameEntity {
         Type = type;
     }
     
-    public Character(Character character) : base(character.TemplateId, character.Hp, character.Mp, character.Atk, character.StartAP) {
+    public Character(Character character) : base(character.TemplateId, character.Hp.Value, character.Mp.Value, character.Atk, character.StartAP) {
         Type = character.Type;
     }
 }

@@ -3,19 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using DG.Tweening;
-using Sirenix.OdinInspector;
-using UniRx;
 using Cysharp.Threading.Tasks;
+using Entities.Cards;
+using ObservableCollections;
+using R3;
 using Random = UnityEngine.Random;
 
 public interface ICardSystem {
+    void SetTurnSystem(TurnSystem turnSystem);
     void SetupItemBuffer();
     void CardMouseOver(BattleCardView battleCard);
     void CardMouseExit(BattleCardView battleCard);
     void UseOrSelectCard(BattleCardView battleCard, Card cardData);
     void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration);
     void AddCard();
-    bool SelectEnemy(Enemy enemy);
+    bool SelectEnemy(BattleEnemyView enemy);
 }
 
 public class CardSystem : Object_Base, ICardSystem {
@@ -27,12 +29,13 @@ public class CardSystem : Object_Base, ICardSystem {
     }
 
     //TODO: 나중에 카드 데이터를 불러오는 방식을 바꿔야함
+    private TurnSystem _turnSystem;
     private List<Card> _cardBuffer;
-    private ReactiveCollection<BattleCardView> _myCards = new();
+    private ObservableList<BattleCardView> _myCards = new();
     private GameObject _cardPrefab;
     
     private Card _selectedCard;
-    private Enemy _selectedEnemy;
+    private BattleEnemyView _selectedEnemy;
     
     private bool _isCardUsing;
     
@@ -46,26 +49,27 @@ public class CardSystem : Object_Base, ICardSystem {
         ServiceLocator.Get<IResourceManager>().LoadAsync<GameObject>(nameof(BattleCardView), (result) => _cardPrefab = result);
         
         // 카드 추가 이벤트
-        _myCards.ObserveAdd().Subscribe(_ => {
+        _myCards.ObserveAdd()
+            .Subscribe(x => {
                 SetOriginOrder();
                 CardAlignment();
-            })
-            .AddTo(this);
+            }).AddTo(this);
         
         // 적 선택 완료 이벤트
         var enemySelectStream = Observable.EveryUpdate()
             .Where(_ => Input.GetKeyUp(KeyCode.Space)) // 스페이스바를 눌렀을 때
-            .Throttle(TimeSpan.FromMilliseconds(300)); // 300ms 동안 쓰로틀링
+            .ThrottleFirst(TimeSpan.FromMilliseconds(300)); // 300ms 동안 쓰로틀링
 
         // 선택된 카드가 있을 때만 처리
         enemySelectStream
             .Where(_ => _selectedEnemy != null) // 선택된 적이 있을 때
-            .Subscribe(_ => Attack())  // 공격 함수 호출
+            .Subscribe(_ => TargetSelect())  // 공격 함수 호출
             .AddTo(this); // 구독 해제 처리
-
         
         return true;
     }
+    
+    public void SetTurnSystem(TurnSystem turnSystem) => _turnSystem = turnSystem;
     
     public void UnRegisterService() => ServiceLocator.UnRegister<ICardSystem>();
 
@@ -108,33 +112,65 @@ public class CardSystem : Object_Base, ICardSystem {
         GetObject((int)GameObjects.CardGroup).transform.DOMoveY(-15f,0.5f).SetEase(Ease.InOutQuad);
         
         //Target 판별
-        if (!cardData.isTargetAll) {
-            //TODO: Volume System
-            
-        }
-        else {
-            
-        }
-        _selectedCard = null;
+        _selectedCard = cardData;
+        if (cardData.IsTargetAll) { TargetAll(); }
+
         SetOriginOrder();
         CardAlignment();
+    }
+
+    private void TargetAll() { UseCost(); }
+
+    private void TargetSelect() {
+        if ( _selectedEnemy == null || _selectedCard == null) return;
+        UseCost();
+    }
+
+    private void UseCost() {
+        if (!_turnSystem.UseAPCost(_selectedCard.Ap)) { return; }
+        EffectByType(_selectedCard.Effects).Forget();
+    }
+
+    /// <summary>
+    /// 카드의 타입에 따라 공격을 합니다.
+    /// </summary>
+    /// <param name="cardData"></param>
+    private async UniTask EffectByType(List<Effect> effects) {
+        Effect currentEffect = effects[0];
+        
+        switch (currentEffect.Type) {
+            case EffectType.Attack:
+                _selectedEnemy.OnDamage(Utils.GetDamageByValueType(currentEffect.ValueType, 50, currentEffect.Value));
+                break;
+            case EffectType.Heal:
+                Debug.Log("Heal");
+                break;
+            case EffectType.Burn:
+                Debug.Log("Buff");
+                break;
+            case EffectType.IncreaseDefense:
+                Debug.Log("Debuff");
+                break;
+        }
+        
+        effects.RemoveAt(0);
+        
+        //TODO: Effect Animation
+        await UniTask.Delay(1000);
+        if (effects.Count > 0) await EffectByType(effects);
+        else _isCardUsing = false;
     }
     
     /// <summary>
     /// 선택된 적을 저장합니다.
     /// </summary>
     /// <param name="enemy">적 데이터</param>
-    public bool SelectEnemy(Enemy enemy) {
+    public bool SelectEnemy(BattleEnemyView enemy) {
         if (_selectedCard == null) return false;
         _selectedEnemy = enemy;
-        return true;
-    }
-    
-    /// <summary>
-    /// 공격 로직
-    /// </summary>
-    private void Attack() {
         
+        Debug.Log("Target : " + _selectedCard + " -> " + _selectedEnemy.name);
+        return true;
     }
 
     public void CardMouseOver(BattleCardView battleCard) {

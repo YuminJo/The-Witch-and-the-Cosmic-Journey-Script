@@ -4,7 +4,6 @@ using UnityEngine;
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
-using UniRx;
 
 public class AttackOrder {
     public Enemy Enemy { get; set; }
@@ -43,6 +42,7 @@ public class TurnSystem : UnitaskBase {
     /// 게임의 초기 셋업
     /// </summary>
     private void GameSetup() {
+        ServiceLocator.Get<ICardSystem>().SetTurnSystem(this);
         ServiceLocator.Get<ICardSystem>().SetupItemBuffer();
         NotProd();
         SetCurrentBattleCharacterList();
@@ -96,6 +96,15 @@ public class TurnSystem : UnitaskBase {
             popup.OnClickCardSelectButton(this).Forget();
             _characterList.ForEach(character => popup.CreateCharacterView(character).Forget());
         });
+    
+    /// <summary>
+    /// AP 코스트 사용
+    /// </summary>
+    public bool UseAPCost(int cost) {
+        if (currentAPCount < cost) return false;
+        currentAPCount -= cost;
+        return true;
+    }
     
     public async UniTask ClickSkillButtonAsync() {
         IsLoading = true;

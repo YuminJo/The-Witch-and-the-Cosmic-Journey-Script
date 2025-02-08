@@ -35,10 +35,11 @@ public class BattleCharacterView : UI_Popup, IBattleCharacterView {
     public void OnDamaged(int value) {
         _characterData.OnDamage(value);
         
+        /*
         Image hpBar = GetImage((int)Images.HpBar);
         DOTween.Kill(hpBar);
         DOTween.To(() => hpBar.fillAmount, x 
-            => hpBar.fillAmount = x, Utils.GetHpPercent(_characterData.Hp,_characterData.MaxHp), 0.5f);
+            => hpBar.fillAmount = x, Utils.GetHpByPercent(_characterData.Hp,_characterData.MaxHp), 0.5f);*/
     }
     
     public void SetCharacterData(Character character) => _characterData = character;

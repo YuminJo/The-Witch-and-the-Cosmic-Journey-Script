@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UniRx;
 using UnityEngine;
 
 // 치트, UI, 랭킹, 게임오버

@@ -5,6 +5,10 @@ public static class ServiceLocator
 {
     public static IDictionary<Type, object> Services { get => _services; }
     private static Dictionary<Type, object> _services = new();
+    // ICardSystemProvider...
+    // TurnStartServiceProvider...
+    // 공변성 반공병성 제네릭 인터페이스
+    // https://roseline.oopy.io/dev/what-is-variance
     
     // 서비스 등록
     public static void Register<T>(T service)

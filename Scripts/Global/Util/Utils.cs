@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using ValueType = Entities.Cards.ValueType;
 
 
 [System.Serializable]
@@ -76,7 +77,16 @@ public class Utils
         return null;
     }
     
-    public static float GetHpPercent(float currentHp, float maxHp) => currentHp / maxHp;
+    public static float GetHpByPercent(int currentHp, int maxHp) => (float)currentHp / maxHp;
+
+    public static int GetDamageByValueType(ValueType valueType, int entityDamage, int value) {
+        float result;
+        
+        if (valueType == ValueType.Percent) result = entityDamage * ((float)value / 100);
+        else result = value + entityDamage;
+        
+        return (int)result;
+    }
 
     public static void GlobalException(string msg) => Debug.LogError(":::GLOBAL EXCEPTION::: " + msg);
 }

@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Entities.Cards;
 using UnityEngine;
 
 public class BattleCardView : Object_Base {
@@ -37,8 +38,8 @@ public class BattleCardView : Object_Base {
         
         ServiceLocator.Get<IResourceManager>().LoadAsync<Sprite>("samplecard", (sprite) 
             => { GetSprite((int)Sprites.Character).sprite = sprite; });
-        GetText((int)Texts.Name).text = _cardData.templateId;
-        GetText((int)Texts.Description).text = _cardData.description;
+        GetText((int)Texts.Name).text = _cardData.TemplateId;
+        GetText((int)Texts.Description).text = _cardData.Description;
     }
     
     void IsCardControllable(bool isControllable) {

@@ -5,6 +5,7 @@ using System.IO;
 using TMPro;
 using UnityEngine;
 using System.Linq;
+using Entities.Cards;
 using Microsoft.CodeAnalysis;
 using Unity.Android.Gradle.Manifest;
 
