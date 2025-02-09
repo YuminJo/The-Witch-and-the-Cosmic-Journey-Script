@@ -17,7 +17,6 @@ public class BattleCardView : Object_Base {
     }
 
     private Card _cardData;
-    
     public PRS originPrs;
     public const float CardSize = 1.5f;
     

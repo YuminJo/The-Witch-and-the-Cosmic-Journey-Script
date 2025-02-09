@@ -7,7 +7,7 @@
         <UnityEngine.UIElements.SliderInt label="START CARD COUNT" value="0" high-value="10" tooltip="시작 카드 개수를 정합니다" binding-path="startCardCount" fill="true" show-input-field="true" inverted="false" />
         <UnityEngine.UIElements.VisualElement name="Line" style="flex-grow: 0; flex-direction: column; height: 3px; justify-content: flex-start; flex-shrink: 1; background-color: rgb(255, 190, 0); align-self: flex-start; width: 100%; margin-top: 10px; margin-bottom: 10px;" />
         <UnityEngine.UIElements.Label text="DEV DEBUG" style="font-size: 16px; -unity-text-align: middle-center; white-space: nowrap; text-overflow: clip; margin-right: 40px; margin-left: 40px; margin-bottom: 5px;" />
-        <UnityEngine.UIElements.SliderInt label="CURRENT AP COUNT" value="0" high-value="10" tooltip="시작 카드 개수를 정합니다" binding-path="currentAPCount" fill="true" show-input-field="true" inverted="false" />
+        <UnityEngine.UIElements.SliderInt label="CURRENT AP COUNT" value="0" high-value="6" tooltip="시작 카드 개수를 정합니다" binding-path="currentApCount" fill="true" show-input-field="true" inverted="false" />
         <UnityEngine.UIElements.Button text="START GAME" enable-rich-text="false" parse-escape-sequences="false" name="StartButton" style="height: 40px;" />
     </UnityEngine.UIElements.VisualElement>
 </ui:UXML>

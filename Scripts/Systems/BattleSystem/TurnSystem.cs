@@ -4,6 +4,7 @@ using UnityEngine;
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
+using R3;
 
 public class AttackOrder {
     public Enemy Enemy { get; set; }
@@ -19,14 +20,16 @@ public class AttackOrder {
 public class TurnSystem : UnitaskBase {
     [Header("Develop")]
     [SerializeField] private bool fastMode;
+    [SerializeField] private int currentApCount; // Editor용 AP 카운트
     [SerializeField] private int startCardCount;
-    [SerializeField] private int currentAPCount;
     [SerializeField] private int currentRound;
     [SerializeField] private int currentTurn;
 
     [Header("Properties")]
     // 게임 끝나면 isLoading을 true로 하면 카드와 엔티티 클릭방지
     public bool IsLoading { get; private set; }
+    
+    [SerializeField] private ReactiveProperty<int> _currentAPCount = new();
 
     private enum ETurnMode { My, Enemy }
     private const float TURN_DELAY_SHORT = 0.05f;
@@ -45,9 +48,14 @@ public class TurnSystem : UnitaskBase {
         ServiceLocator.Get<ICardSystem>().SetTurnSystem(this);
         ServiceLocator.Get<ICardSystem>().SetupItemBuffer();
         NotProd();
+        InitEditorData();
         SetCurrentBattleCharacterList();
         SetEnemyQueue();
-        ShowBattleViewPopup();
+        ShowBattleViewPopup().Forget();
+    }
+
+    private void InitEditorData() {
+        _currentAPCount.Value = currentApCount;
     }
 
     /// <summary>
@@ -86,36 +94,39 @@ public class TurnSystem : UnitaskBase {
     }
     private Character SelectRandomCharacter(List<Character> characters) 
         => characters[UnityEngine.Random.Range(0, characters.Count)];
-    
+
     /// <summary>
     /// 전투 뷰 팝업을 보여준다.
     /// </summary>
-    private void ShowBattleViewPopup() 
-        => ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleView>(callback: (popup)
-            => {
-            popup.OnClickCardSelectButton(this).Forget();
-            _characterList.ForEach(character => popup.CreateCharacterView(character).Forget());
+    private async UniTask ShowBattleViewPopup() {
+        bool isInit = false;
+        BattleView battleView = null;
+
+        ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleView>(callback: (popup) => {
+            battleView = popup;
+            isInit = popup.Init();
         });
-    
+
+        await UniTask.WaitUntil(() => isInit);
+
+        if (battleView != null) {
+            battleView.OnClickCardSelectButton(startCardCount, TURN_DELAY_SHORT);
+            _currentAPCount.Subscribe(value => battleView.SetEnergy(value)).AddTo(this);
+            _characterList.ForEach(character => battleView.CreateCharacterView(character));
+        } else {
+            Debug.LogError("BattleView popup initialization failed.");
+        }
+    }
+
     /// <summary>
     /// AP 코스트 사용
     /// </summary>
     public bool UseAPCost(int cost) {
-        if (currentAPCount < cost) return false;
-        currentAPCount -= cost;
+        if (_currentAPCount.CurrentValue < cost) return false;
+        _currentAPCount.Value -= cost;
+        
+        Debug.Log($"AP Cost: {cost}");
         return true;
-    }
-    
-    public async UniTask ClickSkillButtonAsync() {
-        IsLoading = true;
-        
-        var cardSystem = ServiceLocator.Get<ICardSystem>();
-        for (int i = 0; i < startCardCount; i++) {
-            await UniTask.Delay(TimeSpan.FromSeconds(TURN_DELAY_SHORT));
-            cardSystem.AddCard();
-        }
-        
-        //await StartTurnAsync();
     }
 
     /*private async UniTask StartTurnAsync() {
