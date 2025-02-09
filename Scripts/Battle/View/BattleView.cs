@@ -13,10 +13,12 @@ public class BattleView : UI_Popup, IBattleView {
     }
     
     enum GameObjects {
-        CharacterGroup
+        CharacterGroup,
+        EnergyGroup
     }
     
     private BattlePresenter presenter;
+    private TurnSystem turnSystem;
     
     public override bool Init() {
         if (base.Init() == false)
@@ -48,6 +50,8 @@ public class BattleView : UI_Popup, IBattleView {
     
     public async UniTask OnClickCardSelectButton(TurnSystem turnSystem) {
         await UniTask.WaitUntil(() => _init);
+        
+        turnSystem
         
         GetButton((int)Buttons.CardSelectButton).gameObject.BindEvent(()
             => { turnSystem.ClickSkillButtonAsync().Forget(); });

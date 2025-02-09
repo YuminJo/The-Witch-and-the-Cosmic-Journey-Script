@@ -17,7 +17,7 @@ public interface ICardSystem {
     void UseOrSelectCard(BattleCardView battleCard, Card cardData);
     void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration);
     void AddCard();
-    bool SelectEnemy(BattleEnemyView enemy);
+    bool SelectEnemy(Enemy enemy);
 }
 
 public class CardSystem : Object_Base, ICardSystem {
@@ -34,8 +34,8 @@ public class CardSystem : Object_Base, ICardSystem {
     private ObservableList<BattleCardView> _myCards = new();
     private GameObject _cardPrefab;
     
-    private Card _selectedCard;
-    private BattleEnemyView _selectedEnemy;
+    private KeyValuePair<BattleCardView, Card> _selectedCard;
+    private Enemy _selectedEnemy;
     
     private bool _isCardUsing;
     
@@ -48,12 +48,9 @@ public class CardSystem : Object_Base, ICardSystem {
         ServiceLocator.Register<ICardSystem>(this);
         ServiceLocator.Get<IResourceManager>().LoadAsync<GameObject>(nameof(BattleCardView), (result) => _cardPrefab = result);
         
-        // 카드 추가 이벤트
-        _myCards.ObserveAdd()
-            .Subscribe(x => {
-                SetOriginOrder();
-                CardAlignment();
-            }).AddTo(this);
+        // 카드 추가/제거 이벤트
+        _myCards.ObserveAdd().Subscribe(_ => UpdateCardAlignment()).AddTo(this);
+        _myCards.ObserveRemove().Subscribe(_ => UpdateCardAlignment()).AddTo(this);
         
         // 적 선택 완료 이벤트
         var enemySelectStream = Observable.EveryUpdate()
@@ -70,7 +67,6 @@ public class CardSystem : Object_Base, ICardSystem {
     }
     
     public void SetTurnSystem(TurnSystem turnSystem) => _turnSystem = turnSystem;
-    
     public void UnRegisterService() => ServiceLocator.UnRegister<ICardSystem>();
 
     /// <summary>
@@ -96,7 +92,7 @@ public class CardSystem : Object_Base, ICardSystem {
         var battleCardView = cardObject.GetComponent<BattleCardView>();
         
         cardObject.transform.SetParent(GetObject((int)GameObjects.CardGroup).transform);
-        battleCardView.SetCardData(_cardBuffer[_myCards.Count]);
+        battleCardView.SetCardData(_cardBuffer[_myCards.Count]).Forget();
         _myCards.Add(battleCardView);  // 리스트에 추가하면 자동으로 반응
     }
     
@@ -112,64 +108,54 @@ public class CardSystem : Object_Base, ICardSystem {
         GetObject((int)GameObjects.CardGroup).transform.DOMoveY(-15f,0.5f).SetEase(Ease.InOutQuad);
         
         //Target 판별
-        _selectedCard = cardData;
-        if (cardData.IsTargetAll) { TargetAll(); }
-
-        SetOriginOrder();
-        CardAlignment();
+        _selectedCard = new KeyValuePair<BattleCardView, Card>(battleCard, cardData);
+        if (cardData.IsTargetAll) { UseCost(); }
     }
 
-    private void TargetAll() { UseCost(); }
-
     private void TargetSelect() {
-        if ( _selectedEnemy == null || _selectedCard == null) return;
+        if ( _selectedEnemy == null || _selectedCard.Value == null) return;
         UseCost();
     }
 
     private void UseCost() {
-        if (!_turnSystem.UseAPCost(_selectedCard.Ap)) { return; }
-        EffectByType(_selectedCard.Effects).Forget();
+        if (!_turnSystem.UseAPCost(_selectedCard.Value.Ap)) { return; }
+        EffectByType().Forget();
     }
 
     /// <summary>
     /// 카드의 타입에 따라 공격을 합니다.
     /// </summary>
     /// <param name="cardData"></param>
-    private async UniTask EffectByType(List<Effect> effects) {
-        Effect currentEffect = effects[0];
+    private async UniTask EffectByType() {
+        //Use Card
+        _selectedCard.Key.UseCard();
         
-        switch (currentEffect.Type) {
-            case EffectType.Attack:
-                _selectedEnemy.OnDamage(Utils.GetDamageByValueType(currentEffect.ValueType, 50, currentEffect.Value));
-                break;
-            case EffectType.Heal:
-                Debug.Log("Heal");
-                break;
-            case EffectType.Burn:
-                Debug.Log("Buff");
-                break;
-            case EffectType.IncreaseDefense:
-                Debug.Log("Debuff");
-                break;
+        //Do Effect
+        var effects = new List<Effect>(_selectedCard.Value.Effects);
+        
+        effects.ForEach(effect => Debug.Log(effect.Type));
+
+        var effectActions = new Dictionary<EffectType, Action<Effect>> {
+            { EffectType.Attack, effect => CardEffects.OnDamage(50, _selectedEnemy, effect) },
+            { EffectType.Heal, effect => CardEffects.OnHeal(50, _selectedEnemy, effect) },
+            { EffectType.Burn, effect => CardEffects.OnBuff(effect.Value) },
+            { EffectType.IncreaseDefense, effect => CardEffects.OnDebuff(effect.Value) }
+        };
+
+        foreach (var effect in effects) {
+            effectActions[effect.Type].Invoke(effect);
+            await UniTask.Delay(1000);
         }
-        
-        effects.RemoveAt(0);
-        
-        //TODO: Effect Animation
-        await UniTask.Delay(1000);
-        if (effects.Count > 0) await EffectByType(effects);
-        else _isCardUsing = false;
+        _isCardUsing = false;
     }
     
     /// <summary>
     /// 선택된 적을 저장합니다.
     /// </summary>
     /// <param name="enemy">적 데이터</param>
-    public bool SelectEnemy(BattleEnemyView enemy) {
-        if (_selectedCard == null) return false;
+    public bool SelectEnemy(Enemy enemy) {
+        if (_selectedCard.Value == null) return false;
         _selectedEnemy = enemy;
-        
-        Debug.Log("Target : " + _selectedCard + " -> " + _selectedEnemy.name);
         return true;
     }
 
@@ -194,6 +180,11 @@ public class CardSystem : Object_Base, ICardSystem {
         for (int i = 0; i < _myCards.Count; i++) {
             _myCards[i]?.GetComponent<Order>().SetOriginOrder(i);
         }
+    }
+    
+    private void UpdateCardAlignment() {
+        SetOriginOrder();
+        CardAlignment();
     }
     
     void CardAlignment() {

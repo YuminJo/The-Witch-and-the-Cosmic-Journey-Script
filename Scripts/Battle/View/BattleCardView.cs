@@ -32,6 +32,10 @@ public class BattleCardView : Object_Base {
         return true;
     }
     
+    public void UseCard() {
+        ServiceLocator.Get<IResourceManager>().Destroy(this.gameObject);
+    }
+    
     public async UniTask SetCardData(Card card) {
         _cardData = card;
         await UniTask.WaitUntil(() => _init);
