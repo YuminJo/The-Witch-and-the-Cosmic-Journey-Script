@@ -6,12 +6,13 @@ public class CardEffects
     /// <summary>
     /// 공격하는 효과
     /// </summary>
-    /// <param name="atkStat">기본 공격력</param>
-    /// <param name="selectedEnemy">적 View</param>
-    /// <param name="currentEffect"></param>
-    public static void OnDamage(int atkStat,GameEntity selectedEnemy, Effect currentEffect) {
-        int damage = Utils.GetDamageByValueType(currentEffect.ValueType, atkStat, currentEffect.Value);
-        selectedEnemy.OnDamage(damage);
+    /// <param name="targetEntity">선택된 적</param>
+    /// <param name="atkStat">공격력</param>
+    /// <param name="valueType">값의 타입</param>
+    /// <param name="value">값</param>
+    public static void OnDamage(GameEntity targetEntity, int atkStat, ValueType valueType, int value) {
+        int damage = Utils.GetDamageByValueType(valueType, atkStat, value);
+        targetEntity.OnDamage(damage);
         Debug.Log($"Damaged with value: {damage}");
     }
 

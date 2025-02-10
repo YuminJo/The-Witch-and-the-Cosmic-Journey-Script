@@ -1,5 +1,6 @@
 using Cysharp.Threading.Tasks;
 using Entities.Cards;
+using Systems.BattleSystem;
 using UnityEngine;
 
 public class BattleCardView : Object_Base {

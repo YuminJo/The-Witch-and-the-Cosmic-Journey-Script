@@ -1,5 +1,6 @@
 using System;
 using DG.Tweening;
+using R3;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -29,17 +30,12 @@ public class BattleCharacterView : UI_Popup, IBattleCharacterView {
         
         GetImage((int)Images.TurnChecker).gameObject.SetActive(false);
         
+        _characterData.Hp.Subscribe(HpBarAnimation).AddTo(this);
         return true;
     }
-
-    public void OnDamaged(int value) {
-        _characterData.OnDamage(value);
-        
-        /*
-        Image hpBar = GetImage((int)Images.HpBar);
-        DOTween.Kill(hpBar);
-        DOTween.To(() => hpBar.fillAmount, x 
-            => hpBar.fillAmount = x, Utils.GetHpByPercent(_characterData.Hp,_characterData.MaxHp), 0.5f);*/
+    
+    private void HpBarAnimation(int value) {
+        GetImage((int)Images.HpBar).DOFillAmount(Utils.GetHpByPercent(value, _characterData.MaxHp),0.5f);
     }
     
     public void SetCharacterData(Character character) => _characterData = character;
