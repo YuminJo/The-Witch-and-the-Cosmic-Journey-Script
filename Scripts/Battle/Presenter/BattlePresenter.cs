@@ -1,17 +1,27 @@
+using System;
+using Battle.View;
 using Cysharp.Threading.Tasks;
+using R3;
+using Systems.BattleSystem;
 using UnityEngine;
 
 public class BattlePresenter {
     private readonly IBattleView view;
     private readonly BattleModel model;
     
-    public BattlePresenter(IBattleView view) {
-        this.view = view;
+    public BattlePresenter(BattleView battleView) {
+        this.view = battleView;
         model = new BattleModel();
+        model.IsEnemyTurn.Subscribe(view.IsEnemyTurn).AddTo(battleView);
     }
     
-    public void OnClickEndTurnButton() {
-        view.IsEnemyTurn(true);
+    public void OnClickEndTurnButton(Action action) {
+        model.SetTurnIndicator(true);
+        
+        ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleTurnIndicatorView>(callback: (popup) => {
+            IBattleTurnIndicatorView turnIndicatorView = popup;
+            turnIndicatorView?.SetTurnIndicator(true, BattleModel.TurnIndicatorDelay, action).Forget();
+        });
     }
 
     public void UpdateCard(float turnDelayShort) {
