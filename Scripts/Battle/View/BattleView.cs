@@ -1,11 +1,13 @@
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
+using R3;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
 public interface IBattleView {
+    public void IsEnemyTurn(bool value);
 }
 
 public class BattleView : UI_Popup, IBattleView {
@@ -33,6 +35,12 @@ public class BattleView : UI_Popup, IBattleView {
         
         SetCanvas(gameObject, false, true);
         return true;
+    }
+    
+    public void IsEnemyTurn(bool value) {
+        GetButton((int)Buttons.EndTurnButton).RaycastTarget(!value);
+        GetButton((int)Buttons.CardSelectButton).RaycastTarget(!value);
+        GetButton((int)Buttons.ItemSelectButton).RaycastTarget(!value);
     }
     
     /// <summary>
@@ -63,17 +71,17 @@ public class BattleView : UI_Popup, IBattleView {
         }
     }
     
-    public void OnClickCardSelectButton(int startCardCount, float turnDelayShort) {
+    public void InitButton(float turnDelayShort, Action turnSystemEndTurn) {
         GetButton((int)Buttons.CardSelectButton).gameObject.BindEvent(()
-            => { UpdateCard(startCardCount, turnDelayShort).Forget(); });
-    }
-
-    private async UniTask UpdateCard(int startCardCount, float turnDelayShort) {
-        var cardSystem = ServiceLocator.Get<ICardSystem>();
+            => {
+            Debug.Log("Card Select Button Clicked");
+            presenter.UpdateCard(turnDelayShort);
+        });
         
-        for (int i = 0; i < startCardCount; i++) {
-            await UniTask.Delay(TimeSpan.FromSeconds(turnDelayShort));
-            cardSystem.AddCard();
-        }
+        GetButton((int)Buttons.EndTurnButton).gameObject.BindEvent(() 
+            => {
+            turnSystemEndTurn();
+            presenter.OnClickEndTurnButton();
+        });
     }
 }

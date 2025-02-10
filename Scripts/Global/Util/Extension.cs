@@ -18,6 +18,10 @@ public static class Extension
 	{
 		UI_Base.BindEvent(go, action, type);
 	}
+	
+	public static void RaycastTarget(this Button button, bool value) {
+		button.GetComponent<Image>().raycastTarget = value;
+	}
 
 	static System.Random _rand = new System.Random();
 

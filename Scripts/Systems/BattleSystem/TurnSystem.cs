@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using R3;
+using UnityEngine.Serialization;
 
 public class AttackOrder {
     public Enemy Enemy { get; set; }
@@ -21,7 +22,7 @@ public class TurnSystem : UnitaskBase {
     [Header("Develop")]
     [SerializeField] private bool fastMode;
     [SerializeField] private int currentApCount; // Editor용 AP 카운트
-    [SerializeField] private int startCardCount;
+    [SerializeField] private int cardLimit;
     [SerializeField] private int currentRound;
     [SerializeField] private int currentTurn;
 
@@ -46,7 +47,7 @@ public class TurnSystem : UnitaskBase {
     /// </summary>
     private void GameSetup() {
         ServiceLocator.Get<ICardSystem>().SetTurnSystem(this);
-        ServiceLocator.Get<ICardSystem>().SetupItemBuffer();
+        ServiceLocator.Get<ICardSystem>().SetupItemBuffer(cardLimit);
         NotProd();
         InitEditorData();
         SetCurrentBattleCharacterList();
@@ -109,13 +110,9 @@ public class TurnSystem : UnitaskBase {
 
         await UniTask.WaitUntil(() => isInit);
 
-        if (battleView != null) {
-            battleView.OnClickCardSelectButton(startCardCount, TURN_DELAY_SHORT);
-            _currentAPCount.Subscribe(value => battleView.SetEnergy(value)).AddTo(this);
-            _characterList.ForEach(character => battleView.CreateCharacterView(character));
-        } else {
-            Debug.LogError("BattleView popup initialization failed.");
-        }
+        battleView.InitButton(TURN_DELAY_SHORT, EndTurn);
+        _currentAPCount.Subscribe(value => battleView.SetEnergy(value)).AddTo(this);
+        _characterList.ForEach(character => battleView.CreateCharacterView(character));
     }
 
     /// <summary>
@@ -128,10 +125,13 @@ public class TurnSystem : UnitaskBase {
         Debug.Log($"AP Cost: {cost}");
         return true;
     }
-
-    /*private async UniTask StartTurnAsync() {
+    
+    /// <summary>
+    /// 턴 종료 처리
+    /// </summary>
+    private void EndTurn() {
         IsLoading = true;
-        await UniTask.Delay(TimeSpan.FromSeconds(TURN_DELAY_LONG));
-        IsLoading = false;
-    }*/
+        
+        Debug.Log("End Turn");
+    }
 }

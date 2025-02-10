@@ -31,10 +31,6 @@ public class BattleCardView : Object_Base {
         return true;
     }
     
-    public void UseCard() {
-        ServiceLocator.Get<IResourceManager>().Destroy(this.gameObject);
-    }
-    
     public async UniTask SetCardData(Card card) {
         _cardData = card;
         await UniTask.WaitUntil(() => _init);
@@ -67,5 +63,5 @@ public class BattleCardView : Object_Base {
     //TODO: 카드 클릭시 확대되는 기능 추가
     /*void OnMouseDown() { 
         ServiceLocator.Get<ICardSystem>().ScaleCard(this, new Vector2(2.2f, 2.2f), 0.1f);
-    }*/
+    }*/ 
 }

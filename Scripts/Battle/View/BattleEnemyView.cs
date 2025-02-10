@@ -25,18 +25,16 @@ public class BattleEnemyView : Object_Base
         return true;
     }
 
-    void NotProd() {
+    private void NotProd() {
         _enemyData = new Enemy("enemy01", 1030, 1300, 4, 3, EnemyType.Normal);
     }
     
-    void OnMouseUpAsButton() { 
-        bool isClicked = ServiceLocator.Get<ICardSystem>().SelectEnemy(_enemyData);
-        if (isClicked) GetObject((int)GameObjects.TargetImage).SetActive(true);
+    private void OnMouseUpAsButton() { 
+        bool isClicked = ServiceLocator.Get<ICardSystem>().SelectEnemy(_enemyData,this);
+        if (isClicked) TargetSelected(true);
     }
-
-    public void OnDamage(int value) => _enemyData.OnDamage(value);
-    public void OnHeal(int value) => _enemyData.OnHeal(value);
-    public void AddShield(int value) => _enemyData.AddShield(value); 
+    
+    public void TargetSelected(bool isSelected) => GetObject((int)GameObjects.TargetImage).SetActive(isSelected);
     
     private void HpBarAnimation(int value) {
         Image hpBar = GetObject((int)GameObjects.Hpbar).GetComponent<Image>();

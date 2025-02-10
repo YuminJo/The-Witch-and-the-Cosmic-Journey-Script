@@ -11,13 +11,13 @@ using Random = UnityEngine.Random;
 
 public interface ICardSystem {
     void SetTurnSystem(TurnSystem turnSystem);
-    void SetupItemBuffer();
+    void SetupItemBuffer(int startCardCount = 5);
     void CardMouseOver(BattleCardView battleCard);
     void CardMouseExit(BattleCardView battleCard);
     void UseOrSelectCard(BattleCardView battleCard, Card cardData);
     void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration);
-    void AddCard();
-    bool SelectEnemy(Enemy enemy);
+    UniTask GetCardByCardBuffer(float turnDelayShort);
+    bool SelectEnemy(Enemy enemy, BattleEnemyView enemyView);
 }
 
 public class CardSystem : Object_Base, ICardSystem {
@@ -27,15 +27,15 @@ public class CardSystem : Object_Base, ICardSystem {
         MyCardRight,
         CardGroup
     }
-
+    
     //TODO: 나중에 카드 데이터를 불러오는 방식을 바꿔야함
     private TurnSystem _turnSystem;
-    private List<Card> _cardBuffer;
+    private List<Card> _handCardBuffer = new();
     private ObservableList<BattleCardView> _myCards = new();
     private GameObject _cardPrefab;
     
     private KeyValuePair<BattleCardView, Card> _selectedCard;
-    private Enemy _selectedEnemy;
+    private KeyValuePair<BattleEnemyView, Enemy> _selectedEnemy;
     
     private bool _isCardUsing;
     
@@ -50,7 +50,7 @@ public class CardSystem : Object_Base, ICardSystem {
         
         // 카드 추가/제거 이벤트
         _myCards.ObserveAdd().Subscribe(_ => UpdateCardAlignment()).AddTo(this);
-        _myCards.ObserveRemove().Subscribe(_ => UpdateCardAlignment()).AddTo(this);
+        //_myCards.ObserveRemove().Subscribe(_ => UpdateCardAlignment()).AddTo(this);
         
         // 적 선택 완료 이벤트
         var enemySelectStream = Observable.EveryUpdate()
@@ -59,7 +59,7 @@ public class CardSystem : Object_Base, ICardSystem {
 
         // 선택된 카드가 있을 때만 처리
         enemySelectStream
-            .Where(_ => _selectedEnemy != null) // 선택된 적이 있을 때
+            .Where(_ => _selectedEnemy.Value != null) // 선택된 적이 있을 때
             .Subscribe(_ => TargetSelect())  // 공격 함수 호출
             .AddTo(this); // 구독 해제 처리
         
@@ -70,30 +70,41 @@ public class CardSystem : Object_Base, ICardSystem {
     public void UnRegisterService() => ServiceLocator.UnRegister<ICardSystem>();
 
     /// <summary>
-    /// 카드 버퍼를 세팅합니다. 랜덤으로 섞어줍니다.
+    /// Data Manager에서 카드 데이터를 불러와 섞어서 버퍼에 저장합니다.
+    /// _handCardBuffer에는 기본적으로 5장의 카드가 들어가 있습니다.
+    /// 턴이 끝나면 기존에 남아있는 카드는 유지하고 새로운 카드를 추가합니다.
     /// </summary>
-    public void SetupItemBuffer() {
-        _cardBuffer = new List<Card>(100);
-
-        ServiceLocator.Get<DataManager>().Cards
-            .ToObservable()
-            .Subscribe(card => _cardBuffer.Add(card.Value))
-            .AddTo(this); // 메모리 누수 방지
-
-        _cardBuffer = _cardBuffer.OrderBy(_ => Random.value).ToList();
+    public void SetupItemBuffer(int startCardCount = 5) {
+        var dataManager = ServiceLocator.Get<DataManager>();
+        _handCardBuffer = dataManager.Cards.Values
+            .OrderBy(_ => Random.value)
+            .Take(startCardCount)
+            .ToList();
     }
-
     
     /// <summary>
     /// 카드를 추가합니다.
     /// </summary>
-    public void AddCard() {
+    private void AddCard() {
         var cardObject = Instantiate(_cardPrefab, GetObject((int)GameObjects.CardSpawnPoint).transform.position, Utils.QI);
         var battleCardView = cardObject.GetComponent<BattleCardView>();
         
         cardObject.transform.SetParent(GetObject((int)GameObjects.CardGroup).transform);
-        battleCardView.SetCardData(_cardBuffer[_myCards.Count]).Forget();
+        battleCardView.SetCardData(_handCardBuffer[_myCards.Count]).Forget();
         _myCards.Add(battleCardView);  // 리스트에 추가하면 자동으로 반응
+    }
+    
+    /// <summary>
+    /// 카드 버퍼에서 카드를 가져와서 카드 Object를 생성합니다.
+    /// </summary>
+    /// <param name="turnDelayShort">카드를 가져오는 지연 시간</param>
+    public async UniTask GetCardByCardBuffer(float turnDelayShort) {
+        if (_handCardBuffer.Count == 0) return;
+        
+        while (_myCards.Count < _handCardBuffer.Count) {
+            await UniTask.Delay(TimeSpan.FromSeconds(turnDelayShort));
+            AddCard();
+        }
     }
     
     /// <summary>
@@ -105,7 +116,7 @@ public class CardSystem : Object_Base, ICardSystem {
         
         //TODO: 카드 사용 로직
         //Card Disappear Logic
-        GetObject((int)GameObjects.CardGroup).transform.DOMoveY(-15f,0.5f).SetEase(Ease.InOutQuad);
+        ReSetBattleCardView();
         
         //Target 판별
         _selectedCard = new KeyValuePair<BattleCardView, Card>(battleCard, cardData);
@@ -113,7 +124,7 @@ public class CardSystem : Object_Base, ICardSystem {
     }
 
     private void TargetSelect() {
-        if ( _selectedEnemy == null || _selectedCard.Value == null) return;
+        if ( _selectedEnemy.Value == null || _selectedCard.Value == null) return;
         UseCost();
     }
 
@@ -122,13 +133,22 @@ public class CardSystem : Object_Base, ICardSystem {
         EffectByType().Forget();
     }
 
+    private void UseCard() => _handCardBuffer.Remove(_selectedCard.Value);
+    
+    private void ReSetBattleCardView() {
+        //TODO 나중에 Destroy 대신에 Object Pooling으로 변경
+        _myCards.ForEach(card => Destroy(card.gameObject));
+        _myCards.Clear();
+    }
+
     /// <summary>
     /// 카드의 타입에 따라 공격을 합니다.
     /// </summary>
     /// <param name="cardData"></param>
     private async UniTask EffectByType() {
         //Use Card
-        _selectedCard.Key.UseCard();
+        UseCard();
+        DeactiveTargetSelect();
         
         //Do Effect
         var effects = new List<Effect>(_selectedCard.Value.Effects);
@@ -136,8 +156,8 @@ public class CardSystem : Object_Base, ICardSystem {
         effects.ForEach(effect => Debug.Log(effect.Type));
 
         var effectActions = new Dictionary<EffectType, Action<Effect>> {
-            { EffectType.Attack, effect => CardEffects.OnDamage(50, _selectedEnemy, effect) },
-            { EffectType.Heal, effect => CardEffects.OnHeal(50, _selectedEnemy, effect) },
+            { EffectType.Attack, effect => CardEffects.OnDamage(50, _selectedEnemy.Value, effect) },
+            { EffectType.Heal, effect => CardEffects.OnHeal(50, _selectedEnemy.Value, effect) },
             { EffectType.Burn, effect => CardEffects.OnBuff(effect.Value) },
             { EffectType.IncreaseDefense, effect => CardEffects.OnDebuff(effect.Value) }
         };
@@ -146,16 +166,28 @@ public class CardSystem : Object_Base, ICardSystem {
             effectActions[effect.Type].Invoke(effect);
             await UniTask.Delay(1000);
         }
+        
+        InitSelectedEnemyAndCard();
         _isCardUsing = false;
     }
+    
+    /// <summary>
+    /// 선택된 적과 카드를 초기화합니다.
+    /// </summary>
+    private void InitSelectedEnemyAndCard() {
+        _selectedEnemy = new KeyValuePair<BattleEnemyView, Enemy>(null, null);
+        _selectedCard = new KeyValuePair<BattleCardView, Card>(null, null);
+    }
+
+    private void DeactiveTargetSelect() => _selectedEnemy.Key.TargetSelected(false);
     
     /// <summary>
     /// 선택된 적을 저장합니다.
     /// </summary>
     /// <param name="enemy">적 데이터</param>
-    public bool SelectEnemy(Enemy enemy) {
+    public bool SelectEnemy(Enemy enemy,BattleEnemyView enemyView) {
         if (_selectedCard.Value == null) return false;
-        _selectedEnemy = enemy;
+        _selectedEnemy = new KeyValuePair<BattleEnemyView, Enemy>(enemyView, enemy);
         return true;
     }
 
