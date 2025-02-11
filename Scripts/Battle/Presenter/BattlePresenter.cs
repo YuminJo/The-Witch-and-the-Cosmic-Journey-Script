@@ -12,15 +12,18 @@ public class BattlePresenter {
     public BattlePresenter(BattleView battleView) {
         this.view = battleView;
         model = new BattleModel();
-        model.IsEnemyTurn.Subscribe(view.IsEnemyTurn).AddTo(battleView);
+        model.IsEnemyTurn.Subscribe(view.SetButtonRaycastByTurnValue).AddTo(battleView);
     }
     
-    public void OnClickEndTurnButton(Action action) {
-        model.SetTurnIndicator(true);
+    public void OnClickEndTurnButton(Action action) => TurnChange(true, action);
+    public void IsPlayerTurn(Action action) => TurnChange(false, action);
+
+    private void TurnChange(bool isEnemyTurn, Action action) {
+        model.SetTurnIndicator(isEnemyTurn);
         
         ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleTurnIndicatorView>(callback: (popup) => {
             IBattleTurnIndicatorView turnIndicatorView = popup;
-            turnIndicatorView?.SetTurnIndicator(true, BattleModel.TurnIndicatorDelay, action).Forget();
+            turnIndicatorView?.SetTurnIndicator(isEnemyTurn, action).Forget();
         });
     }
 

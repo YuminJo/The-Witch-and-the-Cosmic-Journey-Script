@@ -5,7 +5,11 @@ using UnityEngine.UI;
 
 namespace Battle.View {
     public interface IBattleView {
-        public void IsEnemyTurn(bool value);
+        public void SetButtonRaycastByTurnValue(bool value);
+        public void IsPlayerTurn(Action action);
+        public void SetEnergy(int value);
+        public void InitButton(float turnDelayShort, Action turnSystemEndTurn);
+        public void CreateCharacterView(Character character);
     }
 
     public class BattleView : UI_Popup, IBattleView {
@@ -19,11 +23,7 @@ namespace Battle.View {
             CharacterGroup,
             EnergyGroup,
         }
-
-        enum Texts {
-            TurnIndicatorText
-        }
-    
+        
         private BattlePresenter presenter;
     
         public override bool Init() {
@@ -32,7 +32,6 @@ namespace Battle.View {
         
             BindButton(typeof(Buttons));
             BindObject(typeof(GameObjects));
-            BindText(typeof(Texts));
         
             SetCanvas(gameObject, false, true);
         
@@ -40,7 +39,7 @@ namespace Battle.View {
             return true;
         }
     
-        public void IsEnemyTurn(bool value) {
+        public void SetButtonRaycastByTurnValue(bool value) {
             GetButton((int)Buttons.EndTurnButton).RaycastTarget(!value);
             GetButton((int)Buttons.CardSelectButton).RaycastTarget(!value);
             GetButton((int)Buttons.ItemSelectButton).RaycastTarget(!value);
@@ -58,6 +57,8 @@ namespace Battle.View {
                 battleCharacterView.SetCharacterData(character);
             });
         }
+        
+        public void IsPlayerTurn(Action action) => presenter.IsPlayerTurn(action);
     
         public void SetEnergy(int value) {
             var energyGroup = GetObject((int)GameObjects.EnergyGroup);

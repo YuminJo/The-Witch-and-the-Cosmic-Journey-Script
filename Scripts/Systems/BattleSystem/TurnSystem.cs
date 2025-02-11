@@ -24,8 +24,8 @@ namespace Systems.BattleSystem {
         [SerializeField] private bool fastMode;
         [SerializeField] private int currentApCount; // Editor용 AP 카운트
         [SerializeField] private int cardLimit;
-        [SerializeField] private int currentRound;
-        [SerializeField] private int currentTurn;
+        [SerializeField] private int currentRound = 1;
+        [SerializeField] private int currentTurn = 1;
 
         [Header("Properties")]
         [SerializeField] private ReactiveProperty<int> _currentAPCount = new();
@@ -35,8 +35,10 @@ namespace Systems.BattleSystem {
         private const float TURN_DELAY_LONG = 0.7f;
     
         private List<Character> _characterList = new();
-        private Queue<Enemy> _enemyQueue = new();
+        private List<Enemy> _enemyList = new();
         private Queue<AttackOrder> _attackOrder = new();
+        
+        private IBattleView _battleView;
 
         public void StartGame() => GameSetup();
     
@@ -67,9 +69,9 @@ namespace Systems.BattleSystem {
             Enemy enemy02 = new Enemy("enemy02", 1000, 100, 50, 3, EnemyType.Normal);
             Enemy enemy03 = new Enemy("enemy03", 1000, 100, 60, 3, EnemyType.Normal);
         
-            _enemyQueue.Enqueue(enemy01);
-            _enemyQueue.Enqueue(enemy02);
-            _enemyQueue.Enqueue(enemy03);
+            _enemyList.Add(enemy01);
+            _enemyList.Add(enemy02);
+            _enemyList.Add(enemy03);
         
             Character sample01 = new Character("sample01", 1000, 100, 10, 3, CharacterType.Tanker);
             Character sample02 = new Character("sample02", 1000, 100, 20, 3, CharacterType.Dealer);
@@ -92,7 +94,7 @@ namespace Systems.BattleSystem {
         /// </summary>
         private void SetEnemyQueue() {
             _attackOrder.Clear();
-            var orderedAttackOrders = _enemyQueue
+            var orderedAttackOrders = _enemyList
                 .Select(enemy => new AttackOrder(enemy, SelectRandomCharacter(_characterList)))
                 .OrderBy(order => order.Enemy.Agi);
             _attackOrder = new Queue<AttackOrder>(orderedAttackOrders);
@@ -106,18 +108,17 @@ namespace Systems.BattleSystem {
         /// </summary>
         private async UniTask ShowBattleViewPopup() {
             bool isInit = false;
-            BattleView battleView = null;
 
             ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleView>(callback: (popup) => {
-                battleView = popup;
+                _battleView = popup;
                 isInit = popup.Init();
             });
 
             await UniTask.WaitUntil(() => isInit);
 
-            battleView.InitButton(TURN_DELAY_SHORT, EndTurn);
-            _currentAPCount.Subscribe(value => battleView.SetEnergy(value)).AddTo(this);
-            _characterList.ForEach(character => battleView.CreateCharacterView(character));
+            _battleView.InitButton(TURN_DELAY_SHORT, EndTurn);
+            _currentAPCount.Subscribe(value => _battleView.SetEnergy(value)).AddTo(this);
+            _characterList.ForEach(character => _battleView.CreateCharacterView(character));
         }
 
         /// <summary>
@@ -138,19 +139,30 @@ namespace Systems.BattleSystem {
             Debug.Log("End Turn");
             ExecuteAttackOrder().Forget();
         }
-
+        
+        /// <summary>
+        /// 공격 명령 처리
+        /// </summary>
         private async UniTask ExecuteAttackOrder() {
             AttackOrder order = _attackOrder.Dequeue();
             
             // 캐릭터의 공격 애니메이션 처리
-            
             await UniTask.Delay(TimeSpan.FromSeconds(3));
             
             // 적의 공격 처리
+            // 스킬이 있는 경우 별도의 처리 필요
             Debug.Log(order.Enemy.Atk);
             CardEffects.OnDamage(order.Character, order.Enemy.Atk, ValueType.Percent, 300);
+
+            if (_attackOrder.Count != 0) { ExecuteAttackOrder().Forget(); }
+            else { NextTurn(); }
+        }
+
+        private void NextTurn() {
+            currentTurn++;
+            ServiceLocator.Get<ICardSystem>().SetupItemBuffer(cardLimit);
             
-            
+            _battleView.IsPlayerTurn(SetEnemyQueue);
         }
     }
 }

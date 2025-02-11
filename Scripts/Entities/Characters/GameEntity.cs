@@ -1,14 +1,18 @@
 using System;
 using System.Collections.Generic;
 using Entities.Cards;
+using ObservableCollections;
 using R3;
 using UnityEngine;
 public class BuffManager {
-    private List<Effect> _buffs = new();
-    public IEnumerable<Effect> Buffs => _buffs;
+    public readonly ObservableList<Effect> Buffs = new();
 
     public void AddBuff(Effect buff) {
-        _buffs.Add(buff);
+        Buffs.Add(buff);
+    }
+    
+    public void RemoveBuff(Effect buff) {
+        Buffs.Remove(buff);
     }
 }
 
@@ -41,9 +45,9 @@ public class GameEntity {
         StartAP = startAP;
         _buffManager = new BuffManager();
     }
-
+    
     public void AddBuff(Effect buff) => _buffManager.AddBuff(buff);
-
+    
     public void IncreaseHp(int amount) {
         Hp.Value = Mathf.Min(Hp.Value + amount, MaxHp);
     }

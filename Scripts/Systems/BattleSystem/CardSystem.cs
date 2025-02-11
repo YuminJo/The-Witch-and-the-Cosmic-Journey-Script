@@ -75,12 +75,16 @@ namespace Systems.BattleSystem {
         /// _handCardBuffer에는 기본적으로 5장의 카드가 들어가 있습니다.
         /// 턴이 끝나면 기존에 남아있는 카드는 유지하고 새로운 카드를 추가합니다.
         /// </summary>
-        public void SetupItemBuffer(int startCardCount = 5) {
+        /// <param name="limitCardCount">카드 제한 개수</param>
+        public void SetupItemBuffer(int limitCardCount = 5) {
             var dataManager = ServiceLocator.Get<DataManager>();
-            _handCardBuffer = dataManager.Cards.Values
-                .OrderBy(_ => Random.value)
-                .Take(startCardCount)
-                .ToList();
+            int cardsToAdd = limitCardCount - _handCardBuffer.Count;
+
+            if (cardsToAdd > 0) {
+                _handCardBuffer.AddRange(dataManager.Cards.Values
+                    .OrderBy(_ => Random.value)
+                    .Take(cardsToAdd));
+            }
         }
     
         /// <summary>
@@ -112,12 +116,13 @@ namespace Systems.BattleSystem {
         /// 카드가 isTargetAll에 따라 전체 대상인지 아닌지에 따라 카드를 사용하거나 선택합니다.
         /// </summary>
         /// <param name="battleCard"></param>
+        /// <param name="cardData"></param>
         public void UseOrSelectCard(BattleCardView battleCard, Card cardData) {
             if (_isCardUsing) return; _isCardUsing = true;
         
             //TODO: 카드 사용 로직
             //Card Disappear Logic
-            ReSetBattleCardView();
+            ResetBattleCardView();
         
             //Target 판별
             _selectedCard = new KeyValuePair<BattleCardView, Card>(battleCard, cardData);
@@ -127,8 +132,12 @@ namespace Systems.BattleSystem {
         private void TargetSelect() {
             if ( _selectedEnemy.Value == null || _selectedCard.Value == null) return;
             UseCost();
+            DeactiveTargetSelect();
         }
-
+        
+        /// <summary>
+        /// 코스트 사용 처리
+        /// </summary>
         private void UseCost() {
             if (!_turnSystem.UseAPCost(_selectedCard.Value.Ap)) { return; }
             EffectByType().Forget();
@@ -136,38 +145,37 @@ namespace Systems.BattleSystem {
 
         private void UseCard() => _handCardBuffer.Remove(_selectedCard.Value);
     
-        private void ReSetBattleCardView() {
+        private void ResetBattleCardView() {
             //TODO 나중에 Destroy 대신에 Object Pooling으로 변경
             _myCards.ForEach(card => Destroy(card.gameObject));
             _myCards.Clear();
         }
 
         /// <summary>
-        /// 카드의 타입에 따라 공격을 합니다.
+        /// 카드의 타입에 따라 효과를 실행합니다.
         /// </summary>
-        /// <param name="cardData"></param>
         private async UniTask EffectByType() {
-            //Use Card
+            // 카드 사용 처리
             UseCard();
-            DeactiveTargetSelect();
-        
-            //Do Effect
-            var effects = new List<Effect>(_selectedCard.Value.Effects);
-        
-            effects.ForEach(effect => Debug.Log(effect.Type));
+            
+            // 전체공격 선택공격 판별
+            
 
+            // 효과 맵핑
             var effectActions = new Dictionary<EffectType, Action<Effect>> {
                 { EffectType.Attack, effect => CardEffects.OnDamage(_selectedEnemy.Value, 50, effect.ValueType, effect.Value) },
-                { EffectType.Heal, effect => CardEffects.OnHeal(50, _selectedEnemy.Value, effect) },
-                { EffectType.Burn, effect => CardEffects.OnBuff(effect.Value) },
-                { EffectType.IncreaseDefense, effect => CardEffects.OnDebuff(effect.Value) }
+                { EffectType.Heal, effect => CardEffects.OnHeal(50, _selectedEnemy.Value, effect) }
             };
 
-            foreach (var effect in effects) {
-                effectActions[effect.Type].Invoke(effect);
+            // 효과 적용
+            foreach (var effect in _selectedCard.Value.Effects) {
+                if (!effectActions.TryGetValue(effect.Type, out var action)) {
+                    action = e => CardEffects.OnBuff(e, _selectedEnemy.Value);
+                }
+                action(effect);
                 await UniTask.Delay(1000);
             }
-        
+
             InitSelectedEnemyAndCard();
             _isCardUsing = false;
         }
@@ -316,10 +324,5 @@ namespace Systems.BattleSystem {
             }
         }
         #endregion
-
-        /*public async UniTask MoveCardToCenter(BattleCardView battleCard) {
-        MoveTransform(battleCard, new PRS(Vector3.zero, Quaternion.identity, Vector3.one * BattleCardView.cardSize), true, 0.5f);
-        await UniTask.Delay(1000);
-    }*/
     }
 }
