@@ -1,20 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using Entities.Cards;
 using ObservableCollections;
 using R3;
 using UnityEngine;
-public class BuffManager {
-    public readonly ObservableList<Effect> Buffs = new();
-
-    public void AddBuff(Effect buff) {
-        Buffs.Add(buff);
-    }
-    
-    public void RemoveBuff(Effect buff) {
-        Buffs.Remove(buff);
-    }
-}
 
 [Serializable]
 public class GameEntity {
@@ -31,8 +21,7 @@ public class GameEntity {
     public int StartAP { get; private set; }
 
     private const int MIN_VALUE = 0;
-    private BuffManager _buffManager;
-    public IEnumerable<Effect> Buffs => _buffManager.Buffs;
+    private List<Effect> _activeEffects = new();
 
     public GameEntity(string templateId, int hp, int mp, int atk, int startAP) {
         TemplateId = templateId;
@@ -43,11 +32,28 @@ public class GameEntity {
         Shield = new ReactiveProperty<int>(0);
         Atk = atk;
         StartAP = startAP;
-        _buffManager = new BuffManager();
     }
     
-    public void AddBuff(Effect buff) => _buffManager.AddBuff(buff);
+    public void ApplyBuff(Effect effect) {
+        effect.ApplyEffect();
+        _activeEffects.Add(effect);
+    }
     
+    private void RemoveEffectAfterTurn(Effect effect)
+    {
+        effect.RemoveEffect();
+        _activeEffects.Remove(effect);
+    }
+
+    public void RemoveAllEffects()
+    {
+        foreach (Effect effect in _activeEffects)
+        {
+            effect.RemoveEffect();
+        }
+        _activeEffects.Clear();
+    }
+
     public void IncreaseHp(int amount) {
         Hp.Value = Mathf.Min(Hp.Value + amount, MaxHp);
     }

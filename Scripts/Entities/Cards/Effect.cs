@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Entities.Cards {
     public enum EffectType {
         Attack,
@@ -7,21 +9,23 @@ namespace Entities.Cards {
     }
 
     [System.Serializable]
-    public class Effect {
-        public EffectType Type { get; private set; }
-        public int Range { get; private set; }
-        public ValueType ValueType { get; private set; }
-        public int Value { get; private set; }
-        public string Stat { get; private set; }
-        public int Turn { get; private set; }
+    public abstract class Effect {
+        protected EffectType Type;
+        protected ValueType ValueType { get; private set; }
+        protected int Value { get; private set; }
+        protected int Turn { get; private set; }
         
-        public Effect(EffectType type, int range, ValueType valueType, int value, string stat, int turn) {
+        protected GameEntity Target;
+        protected Effect(EffectType type, ValueType valueType, int value, int turn, GameEntity target) {
             Type = type;
-            Range = range;
             ValueType = valueType;
             Value = value;
-            Stat = stat;
             Turn = turn;
+            Target = target;
         }
+
+        public abstract void ApplyEffect();
+        public abstract void RemoveEffect();
+
     }
 }

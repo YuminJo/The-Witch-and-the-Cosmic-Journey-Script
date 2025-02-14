@@ -21,14 +21,11 @@ public class BattleEnemyView : Object_Base
         BindObject(typeof(GameObjects));
         GetObject((int)GameObjects.TargetImage).SetActive(false);
         
-        NotProd();
         _enemyData.Hp.Subscribe(HpBarAnimation).AddTo(this);
         return true;
     }
-
-    private void NotProd() {
-        _enemyData = new Enemy("enemy01", 1030, 1300, 4, 3, EnemyType.Normal);
-    }
+    
+    public void SetEnemyData(Enemy enemy) => _enemyData = enemy;
     
     private void OnMouseUpAsButton() { 
         bool isClicked = ServiceLocator.Get<ICardSystem>().SelectEnemy(_enemyData,this);

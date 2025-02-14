@@ -34,8 +34,8 @@ namespace Systems.BattleSystem {
         private const float TURN_DELAY_SHORT = 0.05f;
         private const float TURN_DELAY_LONG = 0.7f;
     
-        private List<Character> _characterList = new();
-        private List<Enemy> _enemyList = new();
+        public List<Character> CharacterList { get; private set; } = new();
+        public List<Enemy> EnemyList { get; private set; } = new();
         private Queue<AttackOrder> _attackOrder = new();
         
         private IBattleView _battleView;
@@ -58,6 +58,10 @@ namespace Systems.BattleSystem {
         private void InitEditorData() {
             _currentAPCount.Value = currentApCount;
         }
+        
+        public List<GameEntity> GetEntityList(bool isFindEnemy) {
+            return isFindEnemy ? EnemyList.Cast<GameEntity>().ToList() : CharacterList.Cast<GameEntity>().ToList();
+        }
 
         /// <summary>
         /// 테스트 데이터 로드
@@ -69,16 +73,16 @@ namespace Systems.BattleSystem {
             Enemy enemy02 = new Enemy("enemy02", 1000, 100, 50, 3, EnemyType.Normal);
             Enemy enemy03 = new Enemy("enemy03", 1000, 100, 60, 3, EnemyType.Normal);
         
-            _enemyList.Add(enemy01);
-            _enemyList.Add(enemy02);
-            _enemyList.Add(enemy03);
+            EnemyList.Add(enemy01);
+            EnemyList.Add(enemy02);
+            EnemyList.Add(enemy03);
         
             Character sample01 = new Character("sample01", 1000, 100, 10, 3, CharacterType.Tanker);
             Character sample02 = new Character("sample02", 1000, 100, 20, 3, CharacterType.Dealer);
             Character sample03 = new Character("sample03", 1000, 100, 30, 3, CharacterType.Supporter);
-            _characterList.Add(sample01);
-            _characterList.Add(sample02);
-            _characterList.Add(sample03);
+            CharacterList.Add(sample01);
+            CharacterList.Add(sample02);
+            CharacterList.Add(sample03);
         }
     
         /// <summary>
@@ -94,8 +98,8 @@ namespace Systems.BattleSystem {
         /// </summary>
         private void SetEnemyQueue() {
             _attackOrder.Clear();
-            var orderedAttackOrders = _enemyList
-                .Select(enemy => new AttackOrder(enemy, SelectRandomCharacter(_characterList)))
+            var orderedAttackOrders = EnemyList
+                .Select(enemy => new AttackOrder(enemy, SelectRandomCharacter(CharacterList)))
                 .OrderBy(order => order.Enemy.Agi);
             _attackOrder = new Queue<AttackOrder>(orderedAttackOrders);
             _attackOrder.ToList().ForEach(order => Debug.Log($"Enemy: {order.Enemy.TemplateId}, Character: {order.Character.TemplateId}"));
@@ -118,7 +122,17 @@ namespace Systems.BattleSystem {
 
             _battleView.InitButton(TURN_DELAY_SHORT, EndTurn);
             _currentAPCount.Subscribe(value => _battleView.SetEnergy(value)).AddTo(this);
-            _characterList.ForEach(character => _battleView.CreateCharacterView(character));
+            CharacterList.ForEach(character => _battleView.CreateCharacterView(character));
+            EnemyList.ForEach(CreateEnemyView);
+        }
+
+        private void CreateEnemyView(Enemy enemy) {
+            var enemyGroup = gameObject;
+            
+            ServiceLocator.Get<IResourceManager>().Instantiate(nameof(BattleEnemyView), enemyGroup.transform, (go) => {
+                var battleEnemyView = go.GetComponent<BattleEnemyView>();
+                battleEnemyView.SetEnemyData(enemy);
+            });
         }
 
         /// <summary>
@@ -159,6 +173,8 @@ namespace Systems.BattleSystem {
         }
 
         private void NextTurn() {
+            // 버프 및 디버프 처리
+
             currentTurn++;
             ServiceLocator.Get<ICardSystem>().SetupItemBuffer(cardLimit);
             

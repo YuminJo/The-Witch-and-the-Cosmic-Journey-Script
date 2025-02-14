@@ -8,7 +8,7 @@ public interface IBattleCharacterView {
     void SetCharacterData(Character character);
 }
 
-public class BattleCharacterView : UI_Popup, IBattleCharacterView {
+public class BattleCharacterView : UI_Base, IBattleCharacterView {
     enum GameObjects {
         EffectLayout
     }

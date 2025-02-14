@@ -79,14 +79,33 @@ public class Utils
     
     public static float GetHpByPercent(int currentHp, int maxHp) => (float)currentHp / maxHp;
 
-    public static int GetDamageByValueType(ValueType valueType, int entityDamage, int value) {
+    public static int GetValueByValueType(ValueType valueType, int entityStatValue, int value) {
         float result;
         
-        if (valueType == ValueType.Percent) result = entityDamage * ((float)value / 100);
-        else result = value + entityDamage;
+        if (valueType == ValueType.Percent) result = entityStatValue * ((float)value / 100);
+        else result = value + entityStatValue;
         
         return (int)result;
     }
 
     public static void GlobalException(string msg) => Debug.LogError(":::GLOBAL EXCEPTION::: " + msg);
+    
+    public static List<T> GetTargetEntitiesByRange<T>(int range, List<T> allEntities, T selectedEntity) where T : class {
+        List<T> targetEntities = new();
+        int selectEntityIndex = allEntities.IndexOf(selectedEntity);
+        
+        for (int i = 0; i <= range / 2; i++) {
+            int leftIndex = selectEntityIndex - i;
+            int rightIndex = selectEntityIndex + i;
+
+            if (leftIndex >= 0) {
+                targetEntities.Add(allEntities[leftIndex]);
+            }
+            if (rightIndex < allEntities.Count && rightIndex != leftIndex) {
+                targetEntities.Add(allEntities[rightIndex]);
+            }
+        }
+
+        return targetEntities;
+    }
 }

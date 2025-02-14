@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using Entities.Cards;
+
 public enum CharacterType {
     Tanker,
     Dealer,
@@ -17,4 +20,6 @@ public class Character : GameEntity {
     public Character(Character character) : base(character.TemplateId, character.Hp.Value, character.Mp.Value, character.Atk, character.StartAP) {
         Type = character.Type;
     }
+    
+    
 }

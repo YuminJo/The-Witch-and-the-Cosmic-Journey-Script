@@ -1,4 +1,6 @@
 using Entities.Cards;
+using Global.Managers;
+using Systems.Buffs;
 using UnityEngine;
 
 namespace Systems.BattleSystem {
@@ -12,21 +14,23 @@ namespace Systems.BattleSystem {
         /// <param name="valueType">값의 타입</param>
         /// <param name="value">값</param>
         public static void OnDamage(GameEntity targetEntity, int atkStat, ValueType valueType, int value) {
-            int damage = Utils.GetDamageByValueType(valueType, atkStat, value);
+            int damage = Utils.GetValueByValueType(valueType, atkStat, value);
             targetEntity.OnDamage(damage);
             Debug.Log($"Damaged with value: {damage}");
         }
-
-        // 회복하는 효과
-        public static void OnHeal(int atkStat,GameEntity selectedEnemy, Effect currentEffect) {
-            int heal = Utils.GetDamageByValueType(currentEffect.ValueType, atkStat, currentEffect.Value);
-            selectedEnemy.OnHeal(heal);
-            Debug.Log($"Healed with value: {heal}");
-        }
-
-        // 버프 디버프 효과
-        public static void OnBuff(Effect currentEffect, GameEntity targetEntity) {
-            targetEntity.AddBuff(currentEffect);
+        
+        public static void OnBuff(GameEntity targetEntity, CardDataLoader.EffectData effectData) {
+            switch (effectData.type) {
+                case EffectType.Attack:
+                    OnDamage(targetEntity, targetEntity.Atk, effectData.valueType, effectData.value);
+                    break;
+                case EffectType.Heal:
+                    targetEntity.ApplyBuff(new HealBuff(effectData, targetEntity));
+                    break;
+                case EffectType.Burn:
+                    targetEntity.ApplyBuff(new BurnBuff(effectData, targetEntity));
+                    break;
+            }
         }
     }
 }

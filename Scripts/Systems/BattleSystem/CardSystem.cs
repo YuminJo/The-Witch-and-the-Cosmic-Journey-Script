@@ -6,6 +6,7 @@ using DG.Tweening;
 using Entities.Cards;
 using ObservableCollections;
 using R3;
+using Systems.Buffs;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -131,8 +132,8 @@ namespace Systems.BattleSystem {
 
         private void TargetSelect() {
             if ( _selectedEnemy.Value == null || _selectedCard.Value == null) return;
-            UseCost();
             DeactiveTargetSelect();
+            UseCost();
         }
         
         /// <summary>
@@ -158,21 +159,15 @@ namespace Systems.BattleSystem {
             // 카드 사용 처리
             UseCard();
             
-            // 전체공격 선택공격 판별
-            
-
-            // 효과 맵핑
-            var effectActions = new Dictionary<EffectType, Action<Effect>> {
-                { EffectType.Attack, effect => CardEffects.OnDamage(_selectedEnemy.Value, 50, effect.ValueType, effect.Value) },
-                { EffectType.Heal, effect => CardEffects.OnHeal(50, _selectedEnemy.Value, effect) }
-            };
+            // 대상 판별
+            List<Enemy> targetEntities = Utils.GetTargetEntitiesByRange(_selectedCard.Value.Range, _turnSystem.EnemyList, _selectedEnemy.Value);
 
             // 효과 적용
-            foreach (var effect in _selectedCard.Value.Effects) {
-                if (!effectActions.TryGetValue(effect.Type, out var action)) {
-                    action = e => CardEffects.OnBuff(e, _selectedEnemy.Value);
+            foreach (var entity in targetEntities) {
+                foreach (var effect in _selectedCard.Value.Effects) {
+                    Debug.Log($"Card Effect: {effect.type}");
+                    CardEffects.OnBuff(entity, effect);
                 }
-                action(effect);
                 await UniTask.Delay(1000);
             }
 
@@ -196,6 +191,8 @@ namespace Systems.BattleSystem {
         /// <param name="enemy">적 데이터</param>
         public bool SelectEnemy(Enemy enemy,BattleEnemyView enemyView) {
             if (_selectedCard.Value == null) return false;
+            if (_selectedEnemy.Key != null) _selectedEnemy.Key.TargetSelected(false);
+            
             _selectedEnemy = new KeyValuePair<BattleEnemyView, Enemy>(enemyView, enemy);
             return true;
         }
