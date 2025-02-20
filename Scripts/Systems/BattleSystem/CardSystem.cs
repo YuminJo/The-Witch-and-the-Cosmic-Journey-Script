@@ -1,23 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Battle.View;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using Entities.Cards;
 using ObservableCollections;
 using R3;
-using Systems.Buffs;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
 namespace Systems.BattleSystem {
     public interface ICardSystem {
-        void SetTurnSystem(TurnSystem turnSystem);
-        void SetupItemBuffer(int startCardCount = 5);
-        void CardMouseOver(BattleCardView battleCard);
+        void InitializeDependencies(ITurnSystem turnSystem, ICardBufferManager cardBufferManager
+        , ICardViewManager cardViewManager);
+        void CardMouseOver(BattleCardView battleCard, int apCount);
         void CardMouseExit(BattleCardView battleCard);
         void UseOrSelectCard(BattleCardView battleCard, Card cardData);
-        void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration);
         UniTask GetCardByCardBuffer(float turnDelayShort);
         bool SelectEnemy(Enemy enemy, BattleEnemyView enemyView);
     }
@@ -29,17 +28,25 @@ namespace Systems.BattleSystem {
             MyCardRight,
             CardGroup
         }
-    
-        //TODO: 나중에 카드 데이터를 불러오는 방식을 바꿔야함
-        private TurnSystem _turnSystem;
-        private List<Card> _handCardBuffer = new();
-        private ObservableList<BattleCardView> _myCards = new();
-        private GameObject _cardPrefab;
+        
+        private ITurnSystem _turnSystem;
+        private ICardBufferManager _cardBufferManager;
+        private ICardViewManager _cardViewManager;
+        private ICardEffectManager _cardEffectManager;
     
         private KeyValuePair<BattleCardView, Card> _selectedCard;
         private KeyValuePair<BattleEnemyView, Enemy> _selectedEnemy;
     
         private bool _isCardUsing;
+        
+        public void InitializeDependencies(ITurnSystem turnSystem, ICardBufferManager cardBufferManager
+        , ICardViewManager cardViewManager) {
+            _turnSystem = turnSystem;
+            _cardBufferManager = cardBufferManager;
+            _cardEffectManager = new CardEffectManager(_turnSystem, this);
+            _cardViewManager = cardViewManager;
+            
+        }
     
         public override bool Init() {
             if (base.Init() == false)
@@ -48,11 +55,10 @@ namespace Systems.BattleSystem {
             BindObject(typeof(GameObjects));
 
             ServiceLocator.Register<ICardSystem>(this);
-            ServiceLocator.Get<IResourceManager>().LoadAsync<GameObject>(nameof(BattleCardView), (result) => _cardPrefab = result);
-        
-            // 카드 추가/제거 이벤트
-            _myCards.ObserveAdd().Subscribe(_ => UpdateCardAlignment()).AddTo(this);
-            //_myCards.ObserveRemove().Subscribe(_ => UpdateCardAlignment()).AddTo(this);
+            
+            _cardViewManager.Init(
+                GetObject((int)GameObjects.MyCardLeft), 
+                GetObject((int)GameObjects.MyCardRight));
         
             // 적 선택 완료 이벤트
             var enemySelectStream = Observable.EveryUpdate()
@@ -64,40 +70,23 @@ namespace Systems.BattleSystem {
                 .Where(_ => _selectedEnemy.Value != null) // 선택된 적이 있을 때
                 .Subscribe(_ => TargetSelect())  // 공격 함수 호출
                 .AddTo(this); // 구독 해제 처리
+            
         
             return true;
         }
-    
-        public void SetTurnSystem(TurnSystem turnSystem) => _turnSystem = turnSystem;
+        
         public void UnRegisterService() => ServiceLocator.UnRegister<ICardSystem>();
-
-        /// <summary>
-        /// Data Manager에서 카드 데이터를 불러와 섞어서 버퍼에 저장합니다.
-        /// _handCardBuffer에는 기본적으로 5장의 카드가 들어가 있습니다.
-        /// 턴이 끝나면 기존에 남아있는 카드는 유지하고 새로운 카드를 추가합니다.
-        /// </summary>
-        /// <param name="limitCardCount">카드 제한 개수</param>
-        public void SetupItemBuffer(int limitCardCount = 5) {
-            var dataManager = ServiceLocator.Get<DataManager>();
-            int cardsToAdd = limitCardCount - _handCardBuffer.Count;
-
-            if (cardsToAdd > 0) {
-                _handCardBuffer.AddRange(dataManager.Cards.Values
-                    .OrderBy(_ => Random.value)
-                    .Take(cardsToAdd));
-            }
-        }
     
         /// <summary>
         /// 카드를 추가합니다.
         /// </summary>
         private void AddCard() {
-            var cardObject = Instantiate(_cardPrefab, GetObject((int)GameObjects.CardSpawnPoint).transform.position, Utils.QI);
+            var cardObject = Instantiate(_cardViewManager.GetCardPrefab(), GetObject((int)GameObjects.CardSpawnPoint).transform.position, Utils.QI);
             var battleCardView = cardObject.GetComponent<BattleCardView>();
         
             cardObject.transform.SetParent(GetObject((int)GameObjects.CardGroup).transform);
-            battleCardView.SetCardData(_handCardBuffer[_myCards.Count]).Forget();
-            _myCards.Add(battleCardView);  // 리스트에 추가하면 자동으로 반응
+            battleCardView.SetCardData(_cardBufferManager.GetHandCardBuffer()[_cardViewManager.GetCardCount]).Forget();
+            _cardViewManager.AddCard(battleCardView);
         }
     
         /// <summary>
@@ -105,9 +94,9 @@ namespace Systems.BattleSystem {
         /// </summary>
         /// <param name="turnDelayShort">카드를 가져오는 지연 시간</param>
         public async UniTask GetCardByCardBuffer(float turnDelayShort) {
-            if (_handCardBuffer.Count == 0) return;
+            if (_cardBufferManager.GetHandCardBuffer().Count == 0) return;
         
-            while (_myCards.Count < _handCardBuffer.Count) {
+            while (_cardViewManager.GetCardCount < _cardBufferManager.GetHandCardBuffer().Count) {
                 await UniTask.Delay(TimeSpan.FromSeconds(turnDelayShort));
                 AddCard();
             }
@@ -123,72 +112,38 @@ namespace Systems.BattleSystem {
         
             //TODO: 카드 사용 로직
             //Card Disappear Logic
-            ResetBattleCardView();
+            _cardViewManager.ResetBattleCardView();
+            _cardViewManager.DeOverLayEnergy();
         
             //Target 판별
             _selectedCard = new KeyValuePair<BattleCardView, Card>(battleCard, cardData);
-            if (cardData.IsTargetAll) { UseCost(); }
+            if (_selectedCard.Value.IsTargetAll()) { _cardEffectManager.UseCost(_selectedCard.Value); }
         }
 
         private void TargetSelect() {
             if ( _selectedEnemy.Value == null || _selectedCard.Value == null) return;
-            DeactiveTargetSelect();
-            UseCost();
-        }
-        
-        /// <summary>
-        /// 코스트 사용 처리
-        /// </summary>
-        private void UseCost() {
-            if (!_turnSystem.UseAPCost(_selectedCard.Value.Ap)) { return; }
-            EffectByType().Forget();
+            //선택 대상 표시 초기화
+            _selectedEnemy.Key.TargetSelected(false);
+            // 카드 사용 로직
+            _cardEffectManager.UseCost(_selectedCard.Value, _selectedEnemy.Value);
         }
 
-        private void UseCard() => _handCardBuffer.Remove(_selectedCard.Value);
-    
-        private void ResetBattleCardView() {
-            //TODO 나중에 Destroy 대신에 Object Pooling으로 변경
-            _myCards.ForEach(card => Destroy(card.gameObject));
-            _myCards.Clear();
-        }
-
-        /// <summary>
-        /// 카드의 타입에 따라 효과를 실행합니다.
-        /// </summary>
-        private async UniTask EffectByType() {
-            // 카드 사용 처리
-            UseCard();
-            
-            // 대상 판별
-            List<Enemy> targetEntities = Utils.GetTargetEntitiesByRange(_selectedCard.Value.Range, _turnSystem.EnemyList, _selectedEnemy.Value);
-
-            // 효과 적용
-            foreach (var entity in targetEntities) {
-                foreach (var effect in _selectedCard.Value.Effects) {
-                    Debug.Log($"Card Effect: {effect.type}");
-                    CardEffects.OnBuff(entity, effect);
-                }
-                await UniTask.Delay(1000);
-            }
-
-            InitSelectedEnemyAndCard();
-            _isCardUsing = false;
-        }
+        public void UseCard() => _cardBufferManager.GetHandCardBuffer().Remove(_selectedCard.Value);
     
         /// <summary>
         /// 선택된 적과 카드를 초기화합니다.
         /// </summary>
-        private void InitSelectedEnemyAndCard() {
+        public void InitSelectedEnemyAndCard() {
             _selectedEnemy = new KeyValuePair<BattleEnemyView, Enemy>(null, null);
             _selectedCard = new KeyValuePair<BattleCardView, Card>(null, null);
+            _isCardUsing = false;
         }
-
-        private void DeactiveTargetSelect() => _selectedEnemy.Key.TargetSelected(false);
-    
+        
         /// <summary>
         /// 선택된 적을 저장합니다.
         /// </summary>
         /// <param name="enemy">적 데이터</param>
+        /// <param name="enemyView">적 View</param>
         public bool SelectEnemy(Enemy enemy,BattleEnemyView enemyView) {
             if (_selectedCard.Value == null) return false;
             if (_selectedEnemy.Key != null) _selectedEnemy.Key.TargetSelected(false);
@@ -197,129 +152,16 @@ namespace Systems.BattleSystem {
             return true;
         }
 
-        public void CardMouseOver(BattleCardView battleCard) {
+        public void CardMouseOver(BattleCardView battleCardView, int apCount) {
             if (_isCardUsing) return;
-            EnlargeCard(true, battleCard);
+            _cardViewManager.EnlargeCard(true, battleCardView);
+            _cardViewManager.ShowOverLayEnergy(apCount, battleCardView);
         }
 
         public void CardMouseExit(BattleCardView battleCard) {
             if (_isCardUsing) return;
-            EnlargeCard(false, battleCard);
+            _cardViewManager.EnlargeCard(false, battleCard);
+            _cardViewManager.DeOverLayEnergy();
         }
-    
-        public void ScaleCard(BattleCardView battleCard, Vector2 scale, float duration) {
-            if (_isCardUsing) return;
-            DOTween.Kill(battleCard.transform);
-            battleCard.transform.DOScale(scale, duration).SetEase(Ease.InCirc);
-        }
-
-        #region Card Alignment
-        void SetOriginOrder() {
-            for (int i = 0; i < _myCards.Count; i++) {
-                _myCards[i]?.GetComponent<Order>().SetOriginOrder(i);
-            }
-        }
-    
-        private void UpdateCardAlignment() {
-            SetOriginOrder();
-            CardAlignment();
-        }
-    
-        void CardAlignment() {
-            List<PRS> originCardPRSs = RoundAlignment(_myCards.Count, 0.5f, Vector3.one * BattleCardView.CardSize);
-
-            var targetCards = _myCards;
-            for (int i = 0; i < targetCards.Count; i++) {
-                var targetCard = targetCards[i];
-
-                targetCard.originPrs = originCardPRSs[i];
-                MoveTransform(targetCard, targetCard.originPrs, true, 0.7f);
-            }
-        }
-
-        List<PRS> RoundAlignment(int objCount, float height, Vector3 scale) {
-            float[] objLerps = new float[objCount];
-            List<PRS> results = new List<PRS>(objCount);
-
-            switch (objCount) {
-                case 1:
-                    objLerps = new float[] { 0.5f };
-                    break;
-                case 2:
-                    objLerps = new float[] { 0.27f, 0.73f };
-                    break;
-                case 3:
-                    objLerps = new float[] { 0.1f, 0.5f, 0.9f };
-                    break;
-                default:
-                    float interval = 1f / (objCount - 1);
-                    for (int i = 0; i < objCount; i++)
-                        objLerps[i] = interval * i;
-                    break;
-            }
-        
-            var leftTr = GetObject((int)GameObjects.MyCardLeft).transform;
-            var rightTr = GetObject((int)GameObjects.MyCardRight).transform;
-            for (int i = 0; i < objCount; i++) {
-                var targetPos = Vector3.Lerp(leftTr.position, rightTr.position, objLerps[i]);
-                var targetRot = Utils.QI;
-                if (objCount >= 4) {
-                    float curve = Mathf.Sqrt(Mathf.Pow(height, 2) - Mathf.Pow(objLerps[i] - 0.5f, 2));
-                    curve = height >= 0 ? curve : -curve;
-                    targetPos.y += curve;
-                    targetRot = Quaternion.Slerp(leftTr.rotation, rightTr.rotation, objLerps[i]);
-                }
-
-                results.Add(new PRS(targetPos, targetRot, scale));
-            }
-
-            return results;
-        }
-
-        void EnlargeCard(bool isEnlarge, BattleCardView battleCard) {
-            DOTween.Kill(battleCard.transform);
-            if (isEnlarge) {
-                Vector3 enlargePos = new Vector3(battleCard.originPrs.pos.x, -4.8f, -10f);
-                MoveTransform(battleCard, new PRS(enlargePos, Utils.QI, Vector3.one * 2.5f), true, 0.5f);
-                AdjustOtherCards(battleCard, true);
-            } else {
-                MoveTransform(battleCard, battleCard.originPrs, true, 0.3f);
-                AdjustOtherCards(battleCard, false);
-            }
-
-            battleCard.GetComponent<Order>().SetMostFrontOrder(isEnlarge);
-        }
-
-        void AdjustOtherCards(BattleCardView centerBattleCard, bool isEnlarge) {
-            float offset = 3.0f;
-            for (int i = 0; i < _myCards.Count; i++) {
-                if (_myCards[i] == centerBattleCard) continue;
-
-                Vector3 newPos = _myCards[i].originPrs.pos;
-                if (isEnlarge) {
-                    if (_myCards[i].originPrs.pos.x < centerBattleCard.originPrs.pos.x) {
-                        newPos.x -= offset;
-                    } else {
-                        newPos.x += offset;
-                    }
-                }
-
-                MoveTransform(_myCards[i], new PRS(newPos, _myCards[i].originPrs.rot, _myCards[i].originPrs.scale), true, 0.5f);
-            }
-        }
-
-        public void MoveTransform(BattleCardView battleCard, PRS prs, bool useDotween, float dotweenTime = 0) {
-            DOTween.Kill(battleCard.transform);
-            if (useDotween) {
-                battleCard.transform.DOLocalMove(prs.pos, dotweenTime).SetEase(Ease.OutQuart);
-                battleCard.transform.DORotateQuaternion(prs.rot, dotweenTime).SetEase(Ease.OutQuart);
-                battleCard.transform.DOScale(prs.scale, dotweenTime).SetEase(Ease.OutQuart);
-            } else {
-                battleCard.transform.position = prs.pos;
-                battleCard.transform.rotation = prs.rot;
-                battleCard.transform.localScale = prs.scale;
-            }
-        }
-        #endregion
     }
 }

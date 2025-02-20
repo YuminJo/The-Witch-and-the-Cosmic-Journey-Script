@@ -1,15 +1,12 @@
-// 공격력 증가 버프
-
-using System.Collections.Generic;
+using Entities.Base;
 using Entities.Cards;
-using Global.Managers;
-using UnityEngine;
+using static Global.Managers.CardDataLoader;
 
 namespace Systems.Buffs {
     public class HealBuff : Effect
     {
-        public HealBuff(CardDataLoader.EffectData effectData, GameEntity target) : 
-            base(effectData.type, effectData.valueType, effectData.value, effectData.turn, target)
+        public HealBuff(EffectData effectData, BaseEntity target) : 
+            base(effectData.GetEffectType(), effectData.GetValueType(), effectData.value, effectData.turn, target)
         {
         
         }

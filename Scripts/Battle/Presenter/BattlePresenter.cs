@@ -15,16 +15,19 @@ public class BattlePresenter {
         model.IsEnemyTurn.Subscribe(view.SetButtonRaycastByTurnValue).AddTo(battleView);
     }
     
+    public void CreateCharacterView(Character character, Transform characterGroup) {
+        ServiceLocator.Get<IResourceManager>().Instantiate(nameof(BattleCharacterView), characterGroup, (go) => {
+            var battleCharacterView = go.GetComponent<BattleCharacterView>();
+            battleCharacterView.SetCharacterData(character);
+        });
+    }
+    
     public void OnClickEndTurnButton(Action action) => TurnChange(true, action);
     public void IsPlayerTurn(Action action) => TurnChange(false, action);
 
     private void TurnChange(bool isEnemyTurn, Action action) {
         model.SetTurnIndicator(isEnemyTurn);
-        
-        ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleTurnIndicatorView>(callback: (popup) => {
-            IBattleTurnIndicatorView turnIndicatorView = popup;
-            turnIndicatorView?.SetTurnIndicator(isEnemyTurn, action).Forget();
-        });
+        action();
     }
 
     public void UpdateCard(float turnDelayShort) {

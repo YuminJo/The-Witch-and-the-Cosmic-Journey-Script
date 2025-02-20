@@ -107,8 +107,9 @@ public class UIManager : IUIManager
 
     public T PeekPopupUI<T>() where T : UI_Popup
     {
-        if (_popupStack.Count == 0)
+        if (_popupStack.Count == 0) {
             return null;
+        }
 
         return _popupStack.Peek() as T;
     }

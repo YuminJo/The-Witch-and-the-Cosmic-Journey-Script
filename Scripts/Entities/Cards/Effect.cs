@@ -1,7 +1,10 @@
 using System.Collections.Generic;
+using Entities.Base;
+using UnityEngine.Serialization;
 
 namespace Entities.Cards {
     public enum EffectType {
+        None,
         Attack,
         Heal,
         Burn,
@@ -10,22 +13,21 @@ namespace Entities.Cards {
 
     [System.Serializable]
     public abstract class Effect {
-        protected EffectType Type;
+        public EffectType type;
         protected ValueType ValueType { get; private set; }
         protected int Value { get; private set; }
-        protected int Turn { get; private set; }
+        public int turn;
         
-        protected GameEntity Target;
-        protected Effect(EffectType type, ValueType valueType, int value, int turn, GameEntity target) {
-            Type = type;
+        protected BaseEntity Target;
+        protected Effect(EffectType type, ValueType valueType, int value, int turn, BaseEntity target) {
+            this.type = type;
             ValueType = valueType;
             Value = value;
-            Turn = turn;
+            this.turn = turn;
             Target = target;
         }
 
         public abstract void ApplyEffect();
         public abstract void RemoveEffect();
-
     }
 }

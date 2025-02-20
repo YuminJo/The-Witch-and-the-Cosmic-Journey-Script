@@ -1,18 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using TMPro;
 using UnityEngine;
-using System.Linq;
 using Entities.Cards;
 using Global.Managers;
-using Microsoft.CodeAnalysis;
-using Unity.Android.Gradle.Manifest;
 
-public interface ILoader<Key, Item>
+public interface ILoader<TKey, TItem>
 {
-    Dictionary<Key, Item> MakeDic();
+    Dictionary<TKey, TItem> MakeDic();
     bool Validate();
 }
 public class DataManager {

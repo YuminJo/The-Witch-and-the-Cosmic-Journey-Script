@@ -78,7 +78,14 @@ public class Utils
     }
     
     public static float GetHpByPercent(int currentHp, int maxHp) => (float)currentHp / maxHp;
-
+    
+    /// <summary>
+    /// ValueType에 따라서 Value를 계산하여 반환한다.
+    /// </summary>
+    /// <param name="valueType">값의 타입</param>
+    /// <param name="entityStatValue">Entity의 ATK 스탯</param>
+    /// <param name="value">카드의 값</param>
+    /// <returns></returns>
     public static int GetValueByValueType(ValueType valueType, int entityStatValue, int value) {
         float result;
         

@@ -3,25 +3,23 @@
 using System.Collections.Generic;
 using Entities.Base;
 using Entities.Cards;
-using Global.Managers;
 using UnityEngine;
+using static Global.Managers.CardDataLoader;
 
 namespace Systems.Buffs {
-    public class BurnBuff : Effect
+    public class IncreaseDefBuff : Effect
     {
-        public BurnBuff(CardDataLoader.EffectData effectData, BaseEntity target) : 
+        public IncreaseDefBuff(EffectData effectData, BaseEntity target) : 
             base(effectData.GetEffectType(), effectData.GetValueType(), effectData.value, effectData.turn, target)
         {
-        
+            Target.OnIncreaseDef(Value);
         }
 
         public override void ApplyEffect() {
-            Target.OnDamage(Utils.GetValueByValueType(ValueType.Percent, 50 , 100));
         }
 
-        public override void RemoveEffect()
-        {
-
+        public override void RemoveEffect() {
+            Target.OnDecreaseDef(Value);
         }
     }
 }

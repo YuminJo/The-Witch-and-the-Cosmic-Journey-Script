@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Entities.Cards;
 using R3;
 using UnityEngine;
+using UnityEngine.Serialization;
 using ValueType = Entities.Cards.ValueType;
 
 namespace Global.Managers {
@@ -14,10 +15,10 @@ namespace Global.Managers {
             public int id;
             public string templateId;
             public string character;
-            public CardType type;
             public int ap;
             public string description;
-            public bool isTargetAll;
+            public bool isUnique;
+            public bool isTargetMe;
             public float value;
             public int range;
             public Sprite sprite;
@@ -32,33 +33,37 @@ namespace Global.Managers {
             //생성자한테 파라미터로 몰아주고 초기화 하는것도 방법인데.. 불변형을 표현을 하기 위해서는 새로운 접근이 필요
             //get internal set 동일 어셈블리 내에서만 접근 가능 책임 구분
             public Card ToCard() {
-                return new Card(id, templateId, character, type, ap, description, isTargetAll, value,range, sprite, effects);
+                CharacterName name = Enum.TryParse(character, out CharacterName result) ? result : CharacterName.None;
+                return new Card(id, templateId, name, ap, description, isUnique,isTargetMe, value,range, sprite, effects);
             }
         }
     
         [Serializable]
         public class EffectData {
-            public EffectType type;
-            public ValueType valueType;
+            public string type;
+            public string valueType;
             public int value;
             public int turn;
+            
+            public EffectType GetEffectType() {
+                return Enum.TryParse(type, out EffectType result) ? result : EffectType.None;
+            }
+
+            public ValueType GetValueType() {
+                return Enum.TryParse(valueType, true, out ValueType result) ? result : ValueType.None;
+            }
         }
 
         public Dictionary<int, Card> MakeDic() {
             Dictionary<int, Card> dic = new();
 
-            Cards.ToObservable()
-                .Where(data => !string.IsNullOrEmpty(data.templateId) || dic.Count > 0)
-                .Subscribe(data => {
+            foreach (CardData data in Cards) {
+                if (string.IsNullOrEmpty(data.templateId)) {
                     //TODO: 스프라이트 로드 추가
-                    //여기 버그있음. 이펙트가 하나밖에 안됨
-                    if (string.IsNullOrEmpty(data.templateId)) {
-                        int lastKey = dic.Count - 1;
-                        if (dic.ContainsKey(lastKey)) {
-                            dic[lastKey].Effects.Add(data.effects[0]);
-                        }
-                    }
-                    else { dic.Add(dic.Count, data.ToCard()); } });
+                    int lastKey = dic.Count - 1;
+                    dic[lastKey].Effects.Add(data.effects[0]);
+                } else { dic.Add(dic.Count, data.ToCard()); }
+            }
             return dic;
         }
 

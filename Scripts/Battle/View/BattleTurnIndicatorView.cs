@@ -3,12 +3,13 @@ using Cysharp.Threading.Tasks;
 
 namespace Battle.View {
     public interface IBattleTurnIndicatorView {
-        public UniTask<bool> SetTurnIndicator(bool isEnemyTurn, Action action);
+        public UniTask<bool> SetTurnIndicator(bool isEnemyTurn);
     }
     public class BattleTurnIndicatorView : UI_Popup, IBattleTurnIndicatorView
     {
         enum GameObjects {
-            TurnIndicator
+            TurnIndicator,
+            Blank
         }
         enum Texts {
             TurnIndicatorText
@@ -31,7 +32,7 @@ namespace Battle.View {
         /// </summary>
         /// <param name="isEnemyTurn"></param>
         /// <param name="turnDelayTime"></param>
-        public async UniTask<bool> SetTurnIndicator(bool isEnemyTurn, Action action) {
+        public async UniTask<bool> SetTurnIndicator(bool isEnemyTurn) {
             await UniTask.WaitUntil(() => _init);
             
             GetObject((int)GameObjects.TurnIndicator).SetActive(true);
@@ -39,9 +40,6 @@ namespace Battle.View {
         
             await UniTask.Delay(TurnIndicatorDelay);
             GetObject((int)GameObjects.TurnIndicator).SetActive(false);
-            
-            ClosePopupUI();
-            action();
             return isEnemyTurn;
         }
     }

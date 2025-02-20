@@ -1,91 +1,194 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Battle.View {
     public interface IBattleView {
-        public void SetButtonRaycastByTurnValue(bool value);
-        public void IsPlayerTurn(Action action);
-        public void SetEnergy(int value);
-        public void InitButton(float turnDelayShort, Action turnSystemEndTurn);
-        public void CreateCharacterView(Character character);
+        bool Init();
+        void SetButtonRaycastByTurnValue(bool value);
+        void EndEnemyTurn(Action action);
+        void SetEnergy(int value);
+        void OnClickCardSelectButton(float turnDelayShort);
+        void OnClickEndTurnButton(Action action);
+        void OnClickCardCancelButton(Action action);
+        void CreateCharacterView(Character character);
+        void OverLayEnergy(int value, BattleCardView battleCardView);
+        void DeOverLayEnergy();
     }
 
     public class BattleView : UI_Popup, IBattleView {
         enum Buttons {
             CardSelectButton,
             ItemSelectButton,
-            EndTurnButton
+            EndTurnButton,
+            CardCancelButton
         }
-    
+
         enum GameObjects {
             CharacterGroup,
+            BackgroundEnergyGroup,
             EnergyGroup,
         }
+
+        enum Texts {
+            EnergyCountText
+        }
+
+        private BattlePresenter _presenter;
+        private List<Image> _energyImages;
+        private List<Image> _backgroundEnergyImages;
+        private BattleCardView _selectedCard;
         
-        private BattlePresenter presenter;
-    
+        private Vector2 _animationVector = new Vector2(150, 250);
+        private List<Vector3> _originPosition = new();
+        
         public override bool Init() {
-            if (base.Init() == false)
+            if (!base.Init())
                 return false;
-        
+
             BindButton(typeof(Buttons));
             BindObject(typeof(GameObjects));
-        
+            BindText(typeof(Texts));
             SetCanvas(gameObject, false, true);
-        
-            presenter = new BattlePresenter(this);
+            
+            GetButton((int)Buttons.CardCancelButton).gameObject.SetActive(false);
+
+            var energyGroup = GetObject((int)GameObjects.EnergyGroup);
+            var backgroundEnergyGroup = GetObject((int)GameObjects.BackgroundEnergyGroup);
+
+            _energyImages = new List<Image>(energyGroup.GetComponentsInChildren<Image>());
+            _backgroundEnergyImages = new List<Image>(backgroundEnergyGroup.transform.GetComponentsInChildren<Image>());
+            
+            _presenter = new BattlePresenter(this);
             return true;
         }
-    
+        
         public void SetButtonRaycastByTurnValue(bool value) {
-            GetButton((int)Buttons.EndTurnButton).RaycastTarget(!value);
-            GetButton((int)Buttons.CardSelectButton).RaycastTarget(!value);
-            GetButton((int)Buttons.ItemSelectButton).RaycastTarget(!value);
-        }
-    
-        /// <summary>
-        /// 캐릭터의 창을 만들고 데이터를 설정합니다.
-        /// </summary>
-        /// <param name="character">캐릭터의 데이터값</param>
-        public void CreateCharacterView(Character character) {
-            var characterGroup = GetObject((int)GameObjects.CharacterGroup);
-    
-            ServiceLocator.Get<IResourceManager>().Instantiate(nameof(BattleCharacterView), characterGroup.transform, (go) => {
-                var battleCharacterView = go.GetComponent<BattleCharacterView>();
-                battleCharacterView.SetCharacterData(character);
-            });
+            bool isInteractable = !value;
+            SetButtonRaycast((int)Buttons.EndTurnButton, isInteractable);
+            SetButtonRaycast((int)Buttons.CardSelectButton, isInteractable);
+            SetButtonRaycast((int)Buttons.ItemSelectButton, isInteractable);
         }
         
-        public void IsPlayerTurn(Action action) => presenter.IsPlayerTurn(action);
-    
+        private void SetButtonRaycast(int buttonIndex, bool value) 
+            => GetButton(buttonIndex).RaycastTarget(value);
+        
+        public void CreateCharacterView(Character character) 
+            => _presenter.CreateCharacterView(character, GetObject((int)GameObjects.CharacterGroup).transform);
+        
+        public void EndEnemyTurn(Action action) 
+            => _presenter.IsPlayerTurn(action);
+        
+        public void OverLayEnergy(int value, BattleCardView battleCardView) {
+            if (battleCardView == _selectedCard) return;
+
+            DeOverLayEnergy();
+            _selectedCard = battleCardView;
+
+            for (int i = 0; i < value; i++) {
+                AnimateEnergyImage(_energyImages[i].isActiveAndEnabled ? _energyImages[i] : _backgroundEnergyImages[i], Color.red);
+            }
+        }
+        
+        private void AnimateEnergyImage(Image image, Color color) 
+            => image.DOColor(color, 0.5f).SetLoops(-1, LoopType.Yoyo);
+        
+
+        public void DeOverLayEnergy() {
+            if (_selectedCard == null) return;
+            _selectedCard = null;
+            
+            foreach (var image in _energyImages) ResetEnergyImage(image);
+            foreach (var image in _backgroundEnergyImages) ResetEnergyImage(image);
+        }
+
+        private void ResetEnergyImage(Image image) {
+            image.color = Color.white;
+            DOTween.Kill(image);
+        }
+        
+        private void SetOriginPosition() {
+            var battleCharacterViews = GetBattleCharacterViews();
+            _originPosition = new List<Vector3>(battleCharacterViews.Count);
+
+            foreach (var view in battleCharacterViews) {
+                _originPosition.Add(view.GetComponent<RectTransform>().localPosition);
+            }
+        }
+        
+        private List<BattleCharacterView> GetBattleCharacterViews() {
+            var characterGroup = GetObject((int)GameObjects.CharacterGroup);
+            return new List<BattleCharacterView>(characterGroup.GetComponentsInChildren<BattleCharacterView>());
+        }
+
+        private async UniTask BattleCharacterViewAnimation() {
+            var characterGroup = GetObject((int)GameObjects.CharacterGroup);
+            characterGroup.GetComponent<HorizontalLayoutGroup>().enabled = false;
+            
+            var battleCharacterViews = GetBattleCharacterViews();
+            int count = battleCharacterViews.Count;
+
+            for (int i = 0; i < count; i++) {
+                var rectTransform = battleCharacterViews[i].GetComponent<RectTransform>();
+                rectTransform.DOLocalMove(new Vector2(_animationVector.x, _animationVector.y - (i - 1) * 50), 0.5f).SetEase(Ease.OutQuart);
+                await UniTask.Delay(100);
+            }
+        }
+
+        private async UniTask ResetCharacterView() {
+            GetButton((int)Buttons.CardCancelButton).gameObject.SetActive(false);
+            
+            var battleCharacterViews = GetBattleCharacterViews();
+            int count = battleCharacterViews.Count -1;
+
+            for (int i = count; i >= 0; i--) {
+                var rectTransform = battleCharacterViews[i].GetComponent<RectTransform>();
+                rectTransform.DOLocalMove(_originPosition[i], 0.5f).SetEase(Ease.OutQuart);
+                await UniTask.Delay(100);
+            }
+        }
+
         public void SetEnergy(int value) {
-            var energyGroup = GetObject((int)GameObjects.EnergyGroup);
-            var children = energyGroup.transform.GetComponentsInChildren<Image>();
-    
-            // Deactivate all children first
-            foreach (var child in children) {
-                child.gameObject.SetActive(false);
+            value = Math.Min(value, 6);
+
+            for (int i = 0; i < _energyImages.Count; i++) {
+                _energyImages[i].gameObject.SetActive(i < value);
             }
 
-            // Activate only the required number of children
-            for (int i = 0; i < value && i < children.Length; i++) {
-                children[i].gameObject.SetActive(true);
-            }
+            GetText((int)Texts.EnergyCountText).text = $"{value} / 6";
         }
-    
-        public void InitButton(float turnDelayShort, Action turnSystemEndTurn) {
-            GetButton((int)Buttons.CardSelectButton).gameObject.BindEvent(()
-                => {
-                Debug.Log("Card Select Button Clicked");
-                presenter.UpdateCard(turnDelayShort);
+
+        public void OnClickCardSelectButton(float turnDelayShort) {
+            BindButtonEvent((int)Buttons.CardSelectButton, () => {
+                //TODO : 수정 해야됨.
+                if (_originPosition.Count == 0) SetOriginPosition();
+                
+                _presenter.UpdateCard(turnDelayShort);
+                GetButton((int)Buttons.CardCancelButton).gameObject.SetActive(true);
+                BattleCharacterViewAnimation().Forget();
             });
+        }
         
-            GetButton((int)Buttons.EndTurnButton).gameObject.BindEvent(() 
-                => {
-                presenter.OnClickEndTurnButton(turnSystemEndTurn);
+        public void OnClickEndTurnButton(Action action) {
+            BindButtonEvent((int)Buttons.EndTurnButton, () => {
+                _presenter.OnClickEndTurnButton(action);
+                ResetCharacterView().Forget();
             });
+        }
+        
+        public void OnClickCardCancelButton(Action action) {
+            BindButtonEvent((int)Buttons.CardCancelButton, () => {
+                action?.Invoke();
+                ResetCharacterView().Forget();
+            });
+        }
+
+        private void BindButtonEvent(int buttonIndex, Action action) {
+            GetButton(buttonIndex).gameObject.BindEvent(action);
         }
     }
 }

@@ -1,3 +1,4 @@
+using Entities.Base;
 using Entities.Cards;
 using Global.Managers;
 using Systems.Buffs;
@@ -13,22 +14,22 @@ namespace Systems.BattleSystem {
         /// <param name="atkStat">공격력</param>
         /// <param name="valueType">값의 타입</param>
         /// <param name="value">값</param>
-        public static void OnDamage(GameEntity targetEntity, int atkStat, ValueType valueType, int value) {
+        public static void OnDamage(BaseEntity targetEntity, int atkStat, ValueType valueType, int value) {
             int damage = Utils.GetValueByValueType(valueType, atkStat, value);
             targetEntity.OnDamage(damage);
-            Debug.Log($"Damaged with value: {damage}");
         }
         
-        public static void OnBuff(GameEntity targetEntity, CardDataLoader.EffectData effectData) {
-            switch (effectData.type) {
+        public static void OnBuff(BaseEntity attacker,BaseEntity target, CardDataLoader.EffectData effectData) {
+            switch (effectData.GetEffectType()) {
                 case EffectType.Attack:
-                    OnDamage(targetEntity, targetEntity.Atk, effectData.valueType, effectData.value);
+                    OnDamage(target, attacker.Atk, effectData.GetValueType(), effectData.value);
                     break;
                 case EffectType.Heal:
-                    targetEntity.ApplyBuff(new HealBuff(effectData, targetEntity));
+                    target.ApplyBuff(new HealBuff(effectData, target));
                     break;
                 case EffectType.Burn:
-                    targetEntity.ApplyBuff(new BurnBuff(effectData, targetEntity));
+                    Debug.Log("Apply Burn");
+                    target.ApplyBuff(new BurnBuff(effectData, target));
                     break;
             }
         }

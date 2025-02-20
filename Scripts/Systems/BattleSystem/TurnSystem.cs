@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using Battle.View;
 using Cysharp.Threading.Tasks;
+using Entities.Base;
 using R3;
 using UnityEngine;
+using static CharacterName;
 using ValueType = Entities.Cards.ValueType;
 
 namespace Systems.BattleSystem {
@@ -18,8 +20,14 @@ namespace Systems.BattleSystem {
             Character = character;
         }
     }
+    
+    public interface ITurnSystem {
+        Character GetCharacter(CharacterName characterName);
+        List<Enemy> EnemyList { get; }
+        bool UseAPCost(int cost);
+    }
 
-    public class TurnSystem : UnitaskBase {
+    public class TurnSystem : UnitaskBase, ITurnSystem {
         [Header("Develop")]
         [SerializeField] private bool fastMode;
         [SerializeField] private int currentApCount; // Editor용 AP 카운트
@@ -33,11 +41,13 @@ namespace Systems.BattleSystem {
         private enum ETurnMode { My, Enemy }
         private const float TURN_DELAY_SHORT = 0.05f;
         private const float TURN_DELAY_LONG = 0.7f;
-    
-        public List<Character> CharacterList { get; private set; } = new();
-        public List<Enemy> EnemyList { get; private set; } = new();
+
+        private List<Character> CharacterList { get; } = new();
+        public List<Enemy> EnemyList { get; } = new();
         private Queue<AttackOrder> _attackOrder = new();
         
+        private ICardBufferManager _cardBufferManager;
+        private ICardViewManager _cardViewManager;
         private IBattleView _battleView;
 
         public void StartGame() => GameSetup();
@@ -46,9 +56,14 @@ namespace Systems.BattleSystem {
         /// 게임의 초기 셋업
         /// </summary>
         private void GameSetup() {
-            ServiceLocator.Get<ICardSystem>().SetTurnSystem(this);
-            ServiceLocator.Get<ICardSystem>().SetupItemBuffer(cardLimit);
             NotProd();
+            
+            _cardViewManager = new CardViewManager();
+            _cardBufferManager = new CardBufferManager();
+            _cardBufferManager.SetupItemBuffer(CharacterList, cardLimit);
+            CardSystem cardSystem = gameObject.AddComponent<CardSystem>();
+            cardSystem.InitializeDependencies(this, _cardBufferManager, _cardViewManager);
+            
             InitEditorData();
             InitializeCurrentBattleCharacterList();
             SetEnemyQueue();
@@ -59,9 +74,8 @@ namespace Systems.BattleSystem {
             _currentAPCount.Value = currentApCount;
         }
         
-        public List<GameEntity> GetEntityList(bool isFindEnemy) {
-            return isFindEnemy ? EnemyList.Cast<GameEntity>().ToList() : CharacterList.Cast<GameEntity>().ToList();
-        }
+        public Character GetCharacter(CharacterName characterName) 
+            => CharacterList.Find(character => character.Name == characterName);
 
         /// <summary>
         /// 테스트 데이터 로드
@@ -69,17 +83,17 @@ namespace Systems.BattleSystem {
         private void NotProd() {
             ServiceLocator.Get<IUIManager>().PeekPopupUI<BattleView>();
         
-            Enemy enemy01 = new Enemy("enemy01", 1000, 100, 40, 3, EnemyType.Normal);
-            Enemy enemy02 = new Enemy("enemy02", 1000, 100, 50, 3, EnemyType.Normal);
-            Enemy enemy03 = new Enemy("enemy03", 1000, 100, 60, 3, EnemyType.Normal);
+            Enemy enemy01 = new Enemy("enemy01", 1000,  40,  EnemyType.Normal);
+            Enemy enemy02 = new Enemy("enemy02", 1000,  50,  EnemyType.Normal);
+            Enemy enemy03 = new Enemy("enemy03", 1000,  60,  EnemyType.Normal);
         
             EnemyList.Add(enemy01);
             EnemyList.Add(enemy02);
             EnemyList.Add(enemy03);
         
-            Character sample01 = new Character("sample01", 1000, 100, 10, 3, CharacterType.Tanker);
-            Character sample02 = new Character("sample02", 1000, 100, 20, 3, CharacterType.Dealer);
-            Character sample03 = new Character("sample03", 1000, 100, 30, 3, CharacterType.Supporter);
+            Character sample01 = new Character(Mario,"sample01", 1000,  10,  CharacterType.Tanker);
+            Character sample02 = new Character(Luigi,"sample02", 1000,  20,  CharacterType.Dealer);
+            Character sample03 = new Character(Peach,"sample03", 1000,  30,  CharacterType.Supporter);
             CharacterList.Add(sample01);
             CharacterList.Add(sample02);
             CharacterList.Add(sample03);
@@ -102,7 +116,7 @@ namespace Systems.BattleSystem {
                 .Select(enemy => new AttackOrder(enemy, SelectRandomCharacter(CharacterList)))
                 .OrderBy(order => order.Enemy.Agi);
             _attackOrder = new Queue<AttackOrder>(orderedAttackOrders);
-            _attackOrder.ToList().ForEach(order => Debug.Log($"Enemy: {order.Enemy.TemplateId}, Character: {order.Character.TemplateId}"));
+            //_attackOrder.ToList().ForEach(order => Debug.Log($"Enemy: {order.Enemy.TemplateId}, Character: {order.Character.TemplateId}"));
         }
         private Character SelectRandomCharacter(List<Character> characters) 
             => characters[UnityEngine.Random.Range(0, characters.Count)];
@@ -115,12 +129,18 @@ namespace Systems.BattleSystem {
 
             ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleView>(callback: (popup) => {
                 _battleView = popup;
-                isInit = popup.Init();
+                isInit = _battleView.Init();
             });
 
             await UniTask.WaitUntil(() => isInit);
-
-            _battleView.InitButton(TURN_DELAY_SHORT, EndTurn);
+            
+            _battleView.OnClickCardSelectButton(TURN_DELAY_SHORT);
+            _battleView.OnClickEndTurnButton(() => {
+                _cardViewManager.ResetBattleCardView();
+                ChangeTurn(true).Forget();
+            });
+            _battleView.OnClickCardCancelButton(_cardViewManager.ResetBattleCardView);
+            
             _currentAPCount.Subscribe(value => _battleView.SetEnergy(value)).AddTo(this);
             CharacterList.ForEach(character => _battleView.CreateCharacterView(character));
             EnemyList.ForEach(CreateEnemyView);
@@ -147,15 +167,29 @@ namespace Systems.BattleSystem {
         }
     
         /// <summary>
-        /// 턴 종료 처리
+        /// 플레이어 턴 종료 처리
         /// </summary>
-        private void EndTurn() {
-            Debug.Log("End Turn");
+        private void EndPlayerTurn() {
             ExecuteAttackOrder().Forget();
         }
         
         /// <summary>
-        /// 공격 명령 처리
+        /// 효과 관련 처리
+        /// </summary>
+        private async UniTask InvokeBuff(bool isInvokeEnemy) {
+            IEnumerable<BaseEntity> targets = isInvokeEnemy ? EnemyList : CharacterList;
+            await UniTask.WhenAll(targets.Select(InvokeEffectWithDelay));
+        }
+
+        private async UniTask InvokeEffectWithDelay(BaseEntity target) {
+            Debug.Log($"InvokeEffectWithDelay: {target.TemplateId}");
+            target.InvokeEffects();
+            await UniTask.WaitForSeconds(2);
+        }
+
+        
+        /// <summary>
+        /// 적 공격 명령 처리
         /// </summary>
         private async UniTask ExecuteAttackOrder() {
             AttackOrder order = _attackOrder.Dequeue();
@@ -169,16 +203,34 @@ namespace Systems.BattleSystem {
             CardEffects.OnDamage(order.Character, order.Enemy.Atk, ValueType.Percent, 300);
 
             if (_attackOrder.Count != 0) { ExecuteAttackOrder().Forget(); }
-            else { NextTurn(); }
+            else {
+                _cardBufferManager.SetupItemBuffer(CharacterList, cardLimit);
+                _battleView.EndEnemyTurn(() => ChangeTurn().Forget());
+                currentTurn++;
+                _currentAPCount.Value += 1;
+            }
         }
-
-        private void NextTurn() {
-            // 버프 및 디버프 처리
-
-            currentTurn++;
-            ServiceLocator.Get<ICardSystem>().SetupItemBuffer(cardLimit);
+        
+        /// <summary>
+        /// 턴 변경
+        /// </summary>
+        /// <param name="isEnemyTurn"></param>
+        private async UniTask ChangeTurn(bool isEnemyTurn = false) {
+            IBattleTurnIndicatorView turnIndicatorView = null;
             
-            _battleView.IsPlayerTurn(SetEnemyQueue);
+            ServiceLocator.Get<IUIManager>().ShowPopupUI<BattleTurnIndicatorView>(callback: (popup) => {
+                turnIndicatorView = popup;
+            });
+            
+            // 턴 UI 표시
+            // 턴이 끝나면 버프 / 디버프 효과 시작
+            await UniTask.WaitUntil(() => turnIndicatorView != null);
+            await turnIndicatorView.SetTurnIndicator(isEnemyTurn);
+            await UniTask.WaitForSeconds(1.5f);
+            await InvokeBuff(isEnemyTurn);
+            
+            if (isEnemyTurn) EndPlayerTurn();
+            else SetEnemyQueue();
         }
     }
 }
