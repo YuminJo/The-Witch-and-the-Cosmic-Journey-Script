@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Battle.View;
+using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using ObservableCollections;
 using R3;
@@ -37,7 +38,8 @@ namespace Systems.BattleSystem {
         }
         
         private void InitCardPrefab() {
-            ServiceLocator.Get<IResourceManager>().LoadAsync<GameObject>(nameof(BattleCardView), (result) => _cardPrefab = result);
+            ServiceLocator.Get<IResourceManager>().LoadAsync<GameObject>(nameof(BattleCardView)).ContinueWith(
+                result => _cardPrefab = result).Forget();
         }
         
         public int GetCardCount => MyCards.Count;

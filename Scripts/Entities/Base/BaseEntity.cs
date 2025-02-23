@@ -12,7 +12,7 @@ namespace Entities.Base {
         public ReactiveProperty<int> Hp { get; private set; }
         public int MaxHp { get; private set; }
         public ReactiveProperty<int> Shield { get; private set; } 
-    
+        public int MaxShield { get; private set; }
         public int Atk { get; private set; } // Attack
         public int Def { get; private set; } // Defense
         public int Crit { get; private set; } // Critical hit chance
@@ -25,6 +25,7 @@ namespace Entities.Base {
             Hp = new ReactiveProperty<int>(hp);
             MaxHp = hp;
             Shield = new ReactiveProperty<int>(0);
+            MaxShield = MaxHp;
             Atk = atk;
         }
     
@@ -41,6 +42,7 @@ namespace Entities.Base {
         }
     
         public void ApplyBuff(Effect effect) {
+            if(effect.turn == 0) { return; }
             _activeEffects.Add(effect);
         }
     
@@ -61,9 +63,20 @@ namespace Entities.Base {
         public void IncreaseHp(int amount) {
             Hp.Value = Mathf.Min(Hp.Value + amount, MaxHp);
         }
+        
+        public void IncreaseShield(int amount) {
+            Shield.Value = Mathf.Min(Shield.Value + amount, MaxShield);
+        }
 
         public void OnDamage(int damage) {
             Debug.Log($"Damaged with value: {damage}");
+    
+            if (Shield.Value > 0) {
+                int shieldDamage = Mathf.Min(damage, Shield.Value);
+                Shield.Value -= shieldDamage;
+                damage -= shieldDamage;
+            }
+    
             Hp.Value = Mathf.Max(Hp.Value - damage, 0);
         }
 
@@ -82,6 +95,15 @@ namespace Entities.Base {
         public void OnDecreaseDef(int def) {
             Def -= def;
             if (Def < 0) { Def = 0; }
+        }
+        
+        public void OnIncreaseCrit(int crit) {
+            Crit += crit;
+        }
+        
+        public void OnDecreaseCrit(int crit) {
+            Crit -= crit;
+            if (Crit < 0) { Crit = 0; }
         }
     }
 }

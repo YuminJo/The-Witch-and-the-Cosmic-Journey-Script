@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using static Define;
 
@@ -31,10 +32,9 @@ public class BaseScene : MonoBehaviour
         }
 
         if (eventObject == null) {
-            ServiceLocator.Get<IResourceManager>().Instantiate("EventSystem", null, (go) =>
-            {
+            ServiceLocator.Get<IResourceManager>().Instantiate("EventSystem", null).ContinueWith(go => {
                 go.name = "@EventSystem";
-            });
+            }).Forget();
         }
 
         return true;

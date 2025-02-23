@@ -8,6 +8,7 @@ public class BattleEnemyView : Object_Base
 {
     enum GameObjects {
         Hpbar,
+        ShieldBar,
         TargetImage
     }
     
@@ -22,6 +23,7 @@ public class BattleEnemyView : Object_Base
         GetObject((int)GameObjects.TargetImage).SetActive(false);
         
         _enemyData.Hp.Subscribe(HpBarAnimation).AddTo(this);
+        _enemyData.Shield.Subscribe(ShieldBarAnimation).AddTo(this);
         return true;
     }
     
@@ -37,5 +39,10 @@ public class BattleEnemyView : Object_Base
     private void HpBarAnimation(int value) {
         Image hpBar = GetObject((int)GameObjects.Hpbar).GetComponent<Image>();
         hpBar.DOFillAmount(Utils.GetHpByPercent(value, _enemyData.MaxHp),0.5f);
+    }
+    
+    private void ShieldBarAnimation(int value) {
+        Image shieldBar = GetObject((int)GameObjects.ShieldBar).GetComponent<Image>();
+        shieldBar.DOFillAmount(Utils.GetHpByPercent(value, _enemyData.MaxShield),0.5f);
     }
 }

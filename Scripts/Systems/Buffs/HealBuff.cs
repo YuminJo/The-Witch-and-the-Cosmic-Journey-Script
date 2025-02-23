@@ -8,11 +8,10 @@ namespace Systems.Buffs {
         public HealBuff(EffectData effectData, BaseEntity target) : 
             base(effectData.GetEffectType(), effectData.GetValueType(), effectData.value, effectData.turn, target)
         {
-        
+            Target.OnHeal(Utils.GetValueByValueType(ValueType, 50 , Value));
         }
 
         public override void ApplyEffect() {
-            Target.OnHeal(Utils.GetValueByValueType(ValueType, 50 , Value));
         }
 
         public override void RemoveEffect()

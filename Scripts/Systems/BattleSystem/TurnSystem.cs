@@ -143,16 +143,15 @@ namespace Systems.BattleSystem {
             
             _currentAPCount.Subscribe(value => _battleView.SetEnergy(value)).AddTo(this);
             CharacterList.ForEach(character => _battleView.CreateCharacterView(character));
-            EnemyList.ForEach(CreateEnemyView);
+            EnemyList.ForEach(enemy => CreateEnemyView(enemy).Forget());
         }
 
-        private void CreateEnemyView(Enemy enemy) {
+        private async UniTask CreateEnemyView(Enemy enemy) {
             var enemyGroup = gameObject;
-            
-            ServiceLocator.Get<IResourceManager>().Instantiate(nameof(BattleEnemyView), enemyGroup.transform, (go) => {
-                var battleEnemyView = go.GetComponent<BattleEnemyView>();
-                battleEnemyView.SetEnemyData(enemy);
-            });
+
+            var go = await ServiceLocator.Get<IResourceManager>().Instantiate(nameof(BattleEnemyView), enemyGroup.transform);
+            var battleEnemyView = go.GetComponent<BattleEnemyView>();
+            battleEnemyView.SetEnemyData(enemy);
         }
 
         /// <summary>

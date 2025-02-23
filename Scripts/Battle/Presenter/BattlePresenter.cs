@@ -16,10 +16,10 @@ public class BattlePresenter {
     }
     
     public void CreateCharacterView(Character character, Transform characterGroup) {
-        ServiceLocator.Get<IResourceManager>().Instantiate(nameof(BattleCharacterView), characterGroup, (go) => {
+        ServiceLocator.Get<IResourceManager>().Instantiate(nameof(BattleCharacterView), characterGroup).ContinueWith(go => {
             var battleCharacterView = go.GetComponent<BattleCharacterView>();
             battleCharacterView.SetCharacterData(character);
-        });
+        }).Forget();
     }
     
     public void OnClickEndTurnButton(Action action) => TurnChange(true, action);

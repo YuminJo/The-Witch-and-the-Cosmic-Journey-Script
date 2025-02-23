@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 public interface IUIManager {
@@ -61,11 +62,11 @@ public class UIManager : IUIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        ServiceLocator.Get<IResourceManager>().Instantiate(key, parent, (go) =>
+        ServiceLocator.Get<IResourceManager>().Instantiate(key, parent).ContinueWith((go) =>
         {
             T subItem = Utils.GetOrAddComponent<T>(go);
             callback?.Invoke(subItem);
-        });
+        }).Forget();
     }
 
     public void ShowSceneUI<T>(string key = null, Action<T> callback = null) where T : UI_Scene
@@ -73,12 +74,12 @@ public class UIManager : IUIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        ServiceLocator.Get<IResourceManager>().Instantiate(key, Root.transform, (go) =>
+        ServiceLocator.Get<IResourceManager>().Instantiate(key, Root.transform).ContinueWith(go =>
         {
             T sceneUI = Utils.GetOrAddComponent<T>(go);
             SceneUI = sceneUI;
             callback?.Invoke(sceneUI);
-        });
+        }).Forget();
     }
 
     public void ShowPopupUI<T>(string key = null, Transform parent = null, Action<T> callback = null) where T : UI_Popup
@@ -86,7 +87,7 @@ public class UIManager : IUIManager
         if (string.IsNullOrEmpty(key))
             key = typeof(T).Name;
 
-        ServiceLocator.Get<IResourceManager>().Instantiate(key, null, (go) =>
+        ServiceLocator.Get<IResourceManager>().Instantiate(key, null).ContinueWith((go) =>
         {
             T popup = Utils.GetOrAddComponent<T>(go);
             _popupStack.Push(popup);
@@ -97,7 +98,7 @@ public class UIManager : IUIManager
                 go.transform.SetParent(Root.transform);
 
             callback?.Invoke(popup);
-        });
+        }).Forget();
     }
 
     public T FindPopup<T>() where T : UI_Popup

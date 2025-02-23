@@ -1,8 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+using R3;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -10,62 +10,56 @@ using Object = UnityEngine.Object;
 
 public interface IResourceManager
 {
-    void LoadAsync<T>(string key = null, Action<T> callback = null) where T : UnityEngine.Object;
+    UniTask<T> LoadAsync<T>(string key = null) where T : UnityEngine.Object;
     void Release(string key);
     void Clear();
-    void Instantiate(string key, Transform parent = null, Action<GameObject> callback = null);
+    UniTask<GameObject> Instantiate(string key, Transform parent = null);
     void Destroy(GameObject go, float seconds = 0.0f);
 }
 
 public class ResourceManager : IResourceManager
 {
-    // 실제 로드한 리소스.
-    Dictionary<string, UnityEngine.Object> _resources = new Dictionary<string, UnityEngine.Object>();
-
-    // 비동기 리소스 진행 상황.
-    Dictionary<string, AsyncOperationHandle> _handles = new Dictionary<string, AsyncOperationHandle>();
+    private readonly Dictionary<string, UnityEngine.Object> _resources = new Dictionary<string, UnityEngine.Object>();
+    private readonly Dictionary<string, AsyncOperationHandle> _handles = new Dictionary<string, AsyncOperationHandle>();
     public int HandlesCount = 0;
-    
-    #region 리소스
-    public void LoadAsync<T>(string key = null, Action<T> callback = null) where T : UnityEngine.Object
+
+    public async UniTask<T> LoadAsync<T>(string key = null) where T : UnityEngine.Object
     {
-        // 캐시 확인.
         if (_resources.TryGetValue(key, out Object resource))
         {
-            callback?.Invoke(resource as T);
-            return;
+            return resource as T;
         }
 
-        // 로딩은 시작했지만 완료되지 않았다면, 콜백만 추가.
         if (_handles.ContainsKey(key))
         {
-            _handles[key].Completed += (op) => { callback?.Invoke(op.Result as T); };
-            return;
+            var handle = _handles[key];
+            await handle.Task;
+            return handle.Result as T;
         }
 
-        // 리소스 비동기 로딩 시작.
-        _handles.Add(key, Addressables.LoadAssetAsync<T>(key));
-
+        var newHandle = Addressables.LoadAssetAsync<T>(key);
+        _handles.Add(key, newHandle);
         HandlesCount++;
-        _handles[key].Completed += (op) =>
-        {
-            _resources.Add(key, op.Result as UnityEngine.Object);
-            callback?.Invoke(op.Result as T);
-            HandlesCount--;
-        };
+
+        var result = await newHandle.Task;
+        _resources.Add(key, result as UnityEngine.Object);
+        HandlesCount--;
+
+        return result;
     }
 
     public void Release(string key)
     {
-        if (_resources.TryGetValue(key, out Object resource) == false)
-            return;
-
-        _resources.Remove(key);
+        if (_resources.TryGetValue(key, out Object resource))
+        {
+            _resources.Remove(key);
+        }
 
         if (_handles.TryGetValue(key, out AsyncOperationHandle handle))
+        {
             Addressables.Release(handle);
-
-        _handles.Remove(key);
+            _handles.Remove(key);
+        }
     }
 
     public void Clear()
@@ -73,43 +67,31 @@ public class ResourceManager : IResourceManager
         _resources.Clear();
 
         foreach (var handle in _handles.Values)
+        {
             Addressables.Release(handle);
+        }
 
         _handles.Clear();
     }
-    #endregion
 
-    #region 프리팹
-    public void Instantiate(string key, Transform parent = null, Action<GameObject> callback = null)
+    public async UniTask<GameObject> Instantiate(string key, Transform parent = null)
     {
-        LoadAsync<GameObject>(key, (prefab) =>
-        {
-            GameObject go = GameObject.Instantiate(prefab, parent);
-            go.name = prefab.name;
-            go.transform.localPosition = prefab.transform.position;
-            callback?.Invoke(go);
-        });
-
-        //Addressables.InstantiateAsync(key, parent).Completed += (go) => 
-        //{ 
-        //	onInstantiate?.Invoke(go.Result); 
-        //};
+        var prefab = await LoadAsync<GameObject>(key);
+        var go = UnityEngine.Object.Instantiate(prefab, parent);
+        go.name = prefab.name;
+        go.transform.localPosition = prefab.transform.position;
+        return go;
     }
 
     public void Destroy(GameObject go, float seconds = 0.0f)
     {
-        Object.Destroy(go, seconds);
-
-        //if (seconds == 0.0f)
-        //	Addressables.ReleaseInstance(go);
-        //else
-        //	Managers.Instance.StartCoroutine(CoDestroyAfter(go, seconds));
+        if (seconds == 0.0f)
+        {
+            UnityEngine.Object.Destroy(go);
+        }
+        else
+        {
+            UnityEngine.Object.Destroy(go, seconds);
+        }
     }
-
-    IEnumerator CoDestroyAfter(GameObject go, float seconds)
-    {
-        yield return new WaitForSeconds(seconds);
-        Addressables.ReleaseInstance(go);
-    }
-    #endregion
 }

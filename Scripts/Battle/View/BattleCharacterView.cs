@@ -16,6 +16,7 @@ public class BattleCharacterView : UI_Base, IBattleCharacterView {
     enum Images {
         CharacterImage,
         HpBar,
+        ShieldBar,
         TurnChecker
     }
     
@@ -31,11 +32,16 @@ public class BattleCharacterView : UI_Base, IBattleCharacterView {
         GetImage((int)Images.TurnChecker).gameObject.SetActive(false);
         
         _characterData.Hp.Subscribe(HpBarAnimation).AddTo(this);
+        _characterData.Shield.Subscribe(ShieldBarAnimation).AddTo(this);
         return true;
     }
     
     private void HpBarAnimation(int value) {
         GetImage((int)Images.HpBar).DOFillAmount(Utils.GetHpByPercent(value, _characterData.MaxHp),0.5f);
+    }
+    
+    private void ShieldBarAnimation(int value) {
+        GetImage((int)Images.ShieldBar).DOFillAmount(Utils.GetHpByPercent(value, _characterData.MaxShield),0.5f);
     }
     
     public void SetCharacterData(Character character) => _characterData = character;
